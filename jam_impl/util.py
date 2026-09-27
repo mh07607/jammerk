@@ -9,7 +9,6 @@ ZERO_HASH = bytes(HASH_LEN_IN_BYTES)
 NUM_VALIDATORS_IN_EPOCH_MARK = 1023
 LENGTH_OF_EPOCH_IN_TIMESLOTS = 600
 
-
 def hash_via_blake2b(data: bytes) -> bytes:
     return hashlib.blake2b(data, HASH_LEN_IN_BYTES).digest()
 
@@ -121,6 +120,21 @@ class Encoder():
 # compatibility
 
 Reader = Decoder
+
+
+class StrictSet(set):
+    """A set that refuses duplicates"""
+
+    def __init__(self, iterable=None):
+        if iterable is not None:
+            for item in iterable:
+                self.add(item)
+
+    def add(self, item):
+        if item in self:
+            raise ValueError(f"Duplicate item found: {item!r}")
+        super().add(item)
+
 
 def decode_compact_length_prefix(b: bytes, offset: int) -> tuple[int, int]:
     first_octet = b[offset]
