@@ -7,7 +7,7 @@ For every codec vector of every kind (both specs):
 import os
 import unittest
 
-from jam_impl.util import Decoder
+from jam_impl.util import Decoder, encode_compact
 from jam_impl.codec.header_codec import (
     decode_header, encode_header, load_vector, spec_globals,
 )
@@ -118,7 +118,24 @@ class ExtrinsicTupleRoundTrip(unittest.TestCase):
         with spec_globals(spec):
             ext = decode_extrinsic(b, spec=spec)
             self.assertTrue(eq(model_to_dict(ext), j), f"{spec}/{name}: model != json")
-            self.assertEqual(encode_extrinsic(ext), b, f"{spec}/{name}: encode != bin")
+            # the model's own method is the production path now
+            self.assertEqual(ext.encode(spec=spec), b, f"{spec}/{name}: encode != bin")
+            # the tuple is rebuildable from the component methods: each list is
+            # its own compact count + the items' record bytes (a single-item
+            # .encode() is compact(1) + record, so the record is encode()[1:])
+            self.assertEqual(
+                encode_compact(len(ext.tickets))
+                + b"".join(t.encode()[1:] for t in ext.tickets)
+                + encode_compact(len(ext.preimages))
+                + b"".join(p.encode()[1:] for p in ext.preimages)
+                + encode_compact(len(ext.guarantees))
+                + b"".join(g.encode()[1:] for g in ext.guarantees)
+                + encode_compact(len(ext.assurances))
+                + b"".join(a.encode()[1:] for a in ext.assurances)
+                + ext.disputes.encode(spec=spec),
+                b,
+                f"{spec}/{name}: component records != bin",
+            )
 
     def test_tiny_extrinsic(self):
         self._check("tiny", "extrinsic")

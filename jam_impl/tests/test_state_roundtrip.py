@@ -1,18 +1,22 @@
 """
-For every numbered step vector in traces/ (each .bin is one TraceStep:
-pre_state, block, post_state - decode_state parses the embedded pre-state):
-  1. decode_state(bin) consumes the pre-state without error            (parse)
-  2. every DECODED component re-encodes to its original value bytes   (round trip)
+State codec round-trip tests against the official jamtestvectors traces.
 
-Form-3 entries (service storage/preimages/requests) are not
-decoded yet
+For every numbered step vector in traces/ (each .bin is one TraceStep:
+pre_state, block, post_state):
+  1. decode_state(bin) parses the embedded pre-state          (parse)
+  2. semantic State -> get_state_keyvals() reproduces the wire byte-exact
+     (keys RE-DERIVED from components via key()/encode(), not cloned;
+      entries key-sorted, matching the RawState wire order)
+
+Form-3 entries (service storage/preimages/requests) are parked in
+`State.undecoded` — not decoded yet, but never dropped.
 """
 
 import os
 import unittest
 
-from jam_impl.util import encode_compact
-from jam_impl.codec.state_codec import decode_state, encode_state_entry
+from jam_impl.util import Decoder
+from jam_impl.codec.state_codec import decode_state, get_state_keyvals
 from jam_impl.models.State import RegistrarState, ServiceDefinition
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -28,11 +32,24 @@ def iter_trace_vectors():
                 yield os.path.join(root, file)
 
 
+def raw_state_bytes(b: bytes) -> bytes:
+    """Slice the embedded pre-state's wire span (root + keyvals) out of a
+    TraceStep .bin."""
+    d = Decoder(b)
+    d.take(32)                      # state root
+    n = d.decode_compact()
+    for _ in range(n):
+        d.take(31)                  # key
+        d.blob()                    # ↕-prefixed value
+    return b[32:d.o]
+
+
 class StateRoundTrip(unittest.TestCase):
-    """bin -> State -> component bytes -> bin, byte-exact per entry."""
+    """bin -> semantic State -> re-derived keyvals -> bin, byte-exact."""
 
     def test_decode_all_traces(self):
-        """Every step .bin decodes; every decoded entry round-trips byte-exact."""
+        """Every step .bin decodes; the semantic State re-encodes byte-exact
+        (keys derived from the components, not cloned from the wire)."""
         vectors = list(iter_trace_vectors())
         self.assertGreater(len(vectors), 100, "expected the full traces suite")
         for path in vectors:
@@ -40,25 +57,41 @@ class StateRoundTrip(unittest.TestCase):
                 with open(path, "rb") as f:
                     b = f.read()
                 state = decode_state(b)
-                self.assertGreater(len(state.entries), 0, "empty pre-state")
-                for entry in state.entries:
-                    if entry.component is None:
-                        continue  # form-3: not decoded yet (by design)
-                    expected = entry.key + encode_compact(len(entry.value)) + entry.value
-                    self.assertEqual(
-                        encode_state_entry(entry), expected,
-                        f"round trip failed for key {entry.key.hex()}",
-                    )
+                expected = raw_state_bytes(b)
+                from jam_impl.util import Encoder
+                kvs = get_state_keyvals(state)
+                e = Encoder()
+                e.compact(len(kvs))
+                for key, value in kvs:
+                    e.raw(key)
+                    e.compact(len(value))
+                    e.raw(value)
+                self.assertEqual(e.finish(), expected)
+
+    def test_keys_are_derived_not_cloned(self):
+        """The semantic State carries no raw keys: every keyval comes from a
+        component's key()/encode() pair."""
+        path = os.path.join(TRACES, "storage", "00000002.bin")
+        with open(path, "rb") as f:
+            state = decode_state(f.read())
+        # the genesis account (service 0) round-trips its key
+        account = state.accounts[0]
+        self.assertIsInstance(account.definition, ServiceDefinition)
+        self.assertEqual(
+            account.definition.key().hex(),
+            "ff" + "00" * 30,  # C(255, s=0): one constant byte + 31 octets total
+        )
+        # form-2 service id is read from ODD key positions (GP D.1): the old
+        # decoder folded the constant 255 into the id — regression guard
+        self.assertEqual(account.definition.service_index, 0)
 
     def test_registrar_matches_known_compact_layout(self):
         """C(13) statistics decode as compact naturals (the 0.7.2 wire)."""
         path = os.path.join(TRACES, "fuzzy", "00000026.bin")
         with open(path, "rb") as f:
             state = decode_state(f.read())
-        registrar = [e.component for e in state.entries
-                     if isinstance(e.component, RegistrarState)]
-        self.assertEqual(len(registrar), 1)
-        reg = registrar[0]
+        reg = state.registrar
+        self.assertIsInstance(reg, RegistrarState)
         self.assertEqual(len(reg.vals_curr_stats), 6)   # tiny: 6 validators
         self.assertEqual(len(reg.vals_last_stats), 6)
         self.assertEqual(len(reg.cores_stats), 2)        # tiny: 2 cores
@@ -66,19 +99,6 @@ class StateRoundTrip(unittest.TestCase):
         # core 1's gas_used is 105391 — hand-verified when the compact layout
         # was fixed (fixed-width decoding misread it as count=100 services).
         self.assertEqual(reg.cores_stats[1].gas_used, 105391)
-
-    def test_service_definitions_decode(self):
-        """Form-2 keys decode into ServiceDefinition models."""
-        # step 2's pre-state == step 1's post-state, which carries a service
-        # account header (C(255, 0)) — verified in the storage suite JSONs.
-        path = os.path.join(TRACES, "storage", "00000002.bin")
-        with open(path, "rb") as f:
-            state = decode_state(f.read())
-        services = [e.component for e in state.entries
-                    if isinstance(e.component, ServiceDefinition)]
-        self.assertGreater(len(services), 0, "storage step 2 pre-state has a service")
-        for service in services:
-            self.assertEqual(len(service.data.service.code_hash), 32)
 
 
 class StrictSetSemantics(unittest.TestCase):

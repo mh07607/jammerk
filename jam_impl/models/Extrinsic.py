@@ -13,6 +13,20 @@ blob, the six failure tags carry nothing.
 from dataclasses import dataclass
 from enum import Enum
 
+from jam_impl.util import Encoder
+
+
+# Wire codecs the model methods delegate to. Imported lazily at call time to
+# break the module cycle (extrinsic_codec imports these models at load).
+def _codec(name):
+    import jam_impl.codec.extrinsic_codec as xc
+    return getattr(xc, name)
+
+
+def _spec_globals(spec: str):
+    from jam_impl.codec.header_codec import spec_globals
+    return spec_globals(spec)
+
 
 # ---------------------------------------------------------------------------
 # E_T tickets (GP C.17)
@@ -23,6 +37,9 @@ class Ticket:  # TicketEnvelope (GP C.17/C.33; jam-types.asn)
     attempt: int     # TicketAttempt, 1 octet (E1)
     signature: bytes  # BandersnatchRingVrfSignature, fixed 784 octets
 
+    def encode(self) -> bytes:
+        return _codec('encode_tickets')([self])
+
 
 # ---------------------------------------------------------------------------
 # E_P preimages (GP C.18)
@@ -32,6 +49,9 @@ class Ticket:  # TicketEnvelope (GP C.17/C.33; jam-types.asn)
 class Preimage:  # GP C.18
     requester: int  # service id, E4
     blob: bytes     # ↕-prefixed preimage data
+
+    def encode(self) -> bytes:
+        return _codec('encode_preimages')([self])
 
 
 # ---------------------------------------------------------------------------
@@ -44,6 +64,9 @@ class Assurance:  # AvailAssurance, GP 11.11/C.20
     bitfield: bytes       # ⌈core-count/8⌉ octets, one bit per core
     validator_index: int  # E2
     signature: bytes      # 64
+
+    def encode(self) -> bytes:
+        return _codec('encode_assurances')([self])
 
 
 # ---------------------------------------------------------------------------
@@ -84,6 +107,12 @@ class Disputes:  # E_D = (verdicts, culprits, faults), GP 10.2/C.21
     verdicts: list[Verdict]
     culprits: list[Culprit]
     faults: list[Fault]
+
+    def encode(self, spec: str = "tiny") -> bytes:
+        # spec-sensitive (judgments-per-verdict = validators-super-majority):
+        # enter the spec context the same way encode_extrinsic does
+        with _spec_globals(spec):
+            return _codec('encode_disputes')(self)
 
 
 # ---------------------------------------------------------------------------
@@ -162,6 +191,11 @@ class Report:  # WorkReport, GP C.29
     segment_root_lookup: list[SegmentRootLookupEntry]  # ↕ (empty ↕ = single 0x00)
     results: list[ResultItem]                        # ↕-prefixed
 
+    def encode(self) -> bytes:
+        e = Encoder()
+        _codec('encode_report')(e, self)
+        return e.finish()
+
 
 @dataclass
 class ValidatorSignature:  # (validator index, ed25519 signature), GP C.30
@@ -175,6 +209,9 @@ class Guarantee:  # GP 11.24/C.30
     slot: int                                # E4 timeslot following production
     signatures: list[ValidatorSignature]     # 2–3 credentials, ordered by validator index
 
+    def encode(self) -> bytes:
+        return _codec('encode_guarantees')([self])
+
 
 # ---------------------------------------------------------------------------
 # Whole extrinsic tuple (GP C.16)
@@ -187,3 +224,6 @@ class Extrinsic:  # E = (E_T, E_D, E_P, E_A, E_G), GP 4.3; wire order T,P,G,A,D 
     preimages: list[Preimage]    # E_P
     guarantees: list[Guarantee]  # E_G
     disputes: Disputes           # E_D
+
+    def encode(self, spec: str = "tiny") -> bytes:
+        return _codec('encode_extrinsic')(self, spec)

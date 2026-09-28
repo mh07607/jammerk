@@ -10,7 +10,7 @@ NUM_VALIDATORS_IN_EPOCH_MARK = 1023
 LENGTH_OF_EPOCH_IN_TIMESLOTS = 600
 
 def hash_via_blake2b(data: bytes) -> bytes:
-    return hashlib.blake2b(data, HASH_LEN_IN_BYTES).digest()
+    return hashlib.blake2b(data, digest_size=HASH_LEN_IN_BYTES).digest()
 
 # TO-DO
 def hash_via_keccak256(data: bytes) -> bytes:

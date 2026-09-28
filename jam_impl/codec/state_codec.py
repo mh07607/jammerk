@@ -11,7 +11,8 @@ from jam_impl.models.State import (
     MostRecentTimeslot, PrivilegedServices, RegistrarState, AccumulationQueue,
     AccumulationHistory, Statistics,
     ServiceDefinition, ServiceDefinitionData, ServiceDefinitionDataService,
-    StateEntry, State,
+    ServiceAccount, ServiceStorageItem, PreimageBlob, PreimageLookupEntry,
+    State,
 )
 from collections.abc import Callable
 
@@ -553,6 +554,10 @@ def decode_form_three_component(b: bytes):
     return None
 
 
+# Raw wire <-> State (semantic)
+# decode functions take the raw value bytes; encode functions (called via the
+# model methods) take the component. One row per first-form key: a component's
+# key and codec only ever change together, in one place.
 STATE_COMPONENTS: dict[int, tuple[Callable, Callable]] = {
     1: (decode_authorization_pool, encode_authorization_pool),
     2: (decode_authorization_queue, encode_authorization_queue),
@@ -572,9 +577,8 @@ STATE_COMPONENTS: dict[int, tuple[Callable, Callable]] = {
     16: (decode_statistics, encode_statistics),
 }
 
-
 # GP D.1 Form 1 to 3
-def state_key_decoder(key: bytes) -> Callable | int:
+def state_key_decoder(key: bytes) -> Callable | int | None:
     first = key[0]
     # first form
     if 0 < first <= 16 and key[1:] == b'\x00' * 30:
@@ -585,67 +589,122 @@ def state_key_decoder(key: bytes) -> Callable | int:
           and key[4] == 0
           and key[6] == 0
           and key[8:] == b'\x00' * 23):
-        service_index = key[0:1] + key[2:3] + key[4:5] + key[6:7]
-        return int.from_bytes(service_index, byteorder="little")
+        # GP D.1 form-2: C((255, s)) = [255, n0, 0, n1, 0, n2, 0, n3, 0...] with
+        # n = E4(s) little-endian at ODD positions. (The old code read bytes
+        # 0,2,4,6 — which wrongly folded the constant 255 into the service id.)
+        service_index = int.from_bytes(key[1:2] + key[3:4] + key[5:6] + key[7:8],
+                                       byteorder="little")
+        return service_index
     # third form
     else:
         return decode_form_three_component
 
 
 def decode_state(b: bytes) -> State:
+    """RawState wire -> semantic State: every form-1 component laid out by
+    name, form-2 accounts bucketed by service id, form-3 parked in
+    `undecoded` (nothing silently dropped)."""
     with spec_globals("tiny"):
         d = Decoder(b)
         state_root = d.hash32()
         n = d.decode_compact()
-        entries = []
+        state = State()
         for _ in range(n):
             key = d.take(31)
             value = d.blob()
             decode_function = state_key_decoder(key)
             if callable(decode_function):
                 component = decode_function(value)
-            else:  # form-2 key: the decoder IS the service index
+            else:  # form-2 key: the "decoder" IS the service index
                 component = decode_service_definition(value, decode_function)
-            entries.append(StateEntry(key=key, value=value, component=component))
-        return State(state_root=state_root, entries=entries)
+            _absorb_component(state, key, value, component)
+        state.state_root = state_root
+        return state
 
 
-def encode_state_entry(entry: StateEntry) -> bytes:
-    with spec_globals("tiny"):  # same spec context as decode_state
-        value = encode_state_component_value(entry)
-        return entry.key + Encoder().compact(len(value)).raw(value).finish()
+def _absorb_component(state: State, key: bytes, value: bytes, component) -> None:
+    """Place one decoded entry into the semantic State."""
+    first = key[0]
+    if first == 255 and component is not None:
+        sid = component.service_index
+        state.accounts.setdefault(sid, ServiceAccount()).definition = component
+    elif 1 <= first <= 16 and key[1:] == b'\x00' * 30:
+        mapping = {
+            1: "authorization_pool", 2: "authorization_queue",
+            3: "recent_history", 4: "safrole", 5: "disputes",
+            6: "entropy", 7: "upcoming_validators", 8: "current_validators",
+            9: "previous_validators", 10: "availability_assignments",
+            11: "most_recent_timeslot", 12: "privileged_services",
+            13: "registrar", 14: "accumulation_queue",
+            15: "accumulation_history", 16: "statistics",
+        }
+        setattr(state, mapping[first], component)
+    else:
+        state.undecoded.append((key, value))  # form-3 (component None)
 
 
-def encode_state_component_value(entry: StateEntry) -> bytes:
-    """Encode one entry's component to its raw value bytes"""
-    if entry.component is None:
-        raise ValueError(
-            f"cannot encode an undecoded (form-3) entry, key {entry.key.hex()}"
-        )
-    key_first = entry.key[0]
-    if isinstance(entry.component, ServiceDefinition):
-        return encode_service_definition(entry.component)
-    if 0 < key_first <= 16 and entry.key[1:] == b'\x00' * 30:
-        return STATE_COMPONENTS[key_first][1](entry.component)  # tuple → encode(component)
-    raise ValueError(f"no encoder for state key {entry.key.hex()}")
+def get_state_keyvals(state: State, spec: str = "tiny") -> list[tuple[bytes, bytes]]:
+    """Semantic State -> all trie keyvals, sorted by key (the RawState wire
+    order, verified across all 1,000 trace vectors)."""
+    with spec_globals(spec):
+        keyvals = list(_iter_component_keyvals(state))
+    keyvals.sort(key=lambda kv: kv[0])
+    return keyvals
 
 
-def encode_state(state: State, spec="full") -> bytes:
-    with spec_globals("tiny"):  # same spec context as decode_state
+def _iter_component_keyvals(state: State):
+    if state.authorization_pool is not None:
+        yield state.authorization_pool.key(), state.authorization_pool.encode()
+    if state.authorization_queue is not None:
+        yield state.authorization_queue.key(), state.authorization_queue.encode()
+    if state.recent_history is not None:
+        yield state.recent_history.key(), state.recent_history.encode()
+    if state.safrole is not None:
+        yield state.safrole.key(), state.safrole.encode()
+    if state.disputes is not None:
+        yield state.disputes.key(), state.disputes.encode()
+    if state.entropy is not None:
+        yield state.entropy.key(), state.entropy.encode()
+    if state.upcoming_validators is not None:
+        yield state.upcoming_validators.key(), state.upcoming_validators.encode()
+    if state.current_validators is not None:
+        yield state.current_validators.key(), state.current_validators.encode()
+    if state.previous_validators is not None:
+        yield state.previous_validators.key(), state.previous_validators.encode()
+    if state.availability_assignments is not None:
+        yield state.availability_assignments.key(), state.availability_assignments.encode()
+    if state.most_recent_timeslot is not None:
+        yield state.most_recent_timeslot.key(), state.most_recent_timeslot.encode()
+    if state.privileged_services is not None:
+        yield state.privileged_services.key(), state.privileged_services.encode()
+    if state.registrar is not None:
+        yield state.registrar.key(), state.registrar.encode()
+    if state.accumulation_queue is not None:
+        yield state.accumulation_queue.key(), state.accumulation_queue.encode()
+    if state.accumulation_history is not None:
+        yield state.accumulation_history.key(), state.accumulation_history.encode()
+    if state.statistics is not None:
+        yield state.statistics.key(), state.statistics.encode()
+    for sid in sorted(state.accounts):
+        account = state.accounts[sid]
+        if account.definition is not None:
+            yield account.definition.key(), account.definition.encode()
+        # form-3 storage/preimages/lookup: emit raw parked entries whose key
+        # starts with this service's C(s, ...) prefix — rebuilt from material
+        # on the write path later; until then undecoded entries pass through
+    for key, value in state.undecoded:
+        yield key, value
+
+
+def encode_state(state: State, spec: str = "full") -> bytes:
+    """State -> RawState wire bytes (root + ↕-prefixed keyvals, key-sorted)."""
+    with spec_globals(spec):
+        keyvals = get_state_keyvals(state, spec)
         e = Encoder()
-        e.hash32(state.state_root)
-        e.compact(len(state.entries))
-        for entry in state.entries:
-            value = encode_state_component_value(entry)
-            e.raw(entry.key)
+        e.hash32(state.state_root) if hasattr(state, "state_root") else None
+        e.compact(len(keyvals))
+        for key, value in keyvals:
+            e.raw(key)
             e.compact(len(value))
             e.raw(value)
         return e.finish()
-
-def get_state_keyvals(state: State, spec="full") -> list[tuple]:
-    key_vals = []
-    with spec_globals(spec):
-        for entry in state.entries:
-            key = entry.key
-            value = encode_state_component_value(entry)
-

@@ -310,7 +310,7 @@ def encode_disputes(disputes: Disputes) -> bytes:
 # Whole extrinsic  E (GP C.16: order T, P, G, A, D)
 # ---------------------------------------------------------------------------
 
-def decode_extrinsic(b: bytes, spec: str = "full") -> Extrinsic:
+def decode_extrinsic(b: bytes, spec: str = "tiny") -> Extrinsic:
     """Decode the full extrinsic tuple into typed models (GP C.16)."""
     with spec_globals(spec):
         d = Decoder(b)
@@ -325,15 +325,16 @@ def decode_extrinsic(b: bytes, spec: str = "full") -> Extrinsic:
         return ext
 
 
-def encode_extrinsic(ext) -> bytes:
+def encode_extrinsic(ext, spec: str = "tiny") -> bytes:
     """Encode the typed extrinsic tuple back to wire bytes."""
-    return (
-        encode_tickets(ext.tickets)
-        + encode_preimages(ext.preimages)
-        + encode_guarantees(ext.guarantees)
-        + encode_assurances(ext.assurances)
-        + encode_disputes(ext.disputes)
-    )
+    with spec_globals(spec):
+        return (
+            encode_tickets(ext.tickets)
+            + encode_preimages(ext.preimages)
+            + encode_guarantees(ext.guarantees)
+            + encode_assurances(ext.assurances)
+            + encode_disputes(ext.disputes)
+        )
 
 
 if __name__ == "__main__":

@@ -10,7 +10,7 @@ import json
 import os
 import unittest
 
-from jam_impl.codec.header_codec import decode_header, encode_header, spec_globals
+from jam_impl.codec.header_codec import decode_header, spec_globals
 from jam_impl.codec.extrinsic_codec import decode_extrinsic
 from jam_impl.codec.block_codec import decode_block, encode_block
 from jam_impl.models import Header
@@ -93,9 +93,13 @@ class BlockRoundTrip(unittest.TestCase):
         # -- encode: byte-exact round trip ---------------------------------
         self.assertEqual(encode_block(header, ext, spec=spec), b, f"{spec}: encode_block != bin")
 
+        # -- the models' own methods are the production paths --------------
+        self.assertEqual(header.encode(), b[:boundary], f"{spec}: header.encode != bin prefix")
+        self.assertEqual(ext.encode(spec=spec), b[boundary:], f"{spec}: ext.encode != bin suffix")
+
         # -- boundary is exactly the encoded header length ------------------
-        self.assertEqual(boundary, len(encode_header(header)),
-                         f"{spec}: header/extrinsic boundary != len(encode_header)")
+        self.assertEqual(boundary, len(header.encode()),
+                         f"{spec}: header/extrinsic boundary != len(header.encode)")
 
         # -- decode_header on the prefix and decode_extrinsic on the suffix
         #    agree with decode_block -----------------------------------------

@@ -20,7 +20,8 @@ from jam_impl.models.State import (
     PrivilegedServices, RegistrarState, AccumulationQueue,
     AccumulationHistory, Statistics,
     ServiceDefinition, ServiceDefinitionData, ServiceDefinitionDataService,
-    StateEntry, State,
+    ServiceStorageItem, PreimageBlob, PreimageLookupEntry,
+    ServiceAccount, State,
 )
 
 __all__ = [
@@ -40,5 +41,5 @@ __all__ = [
     "MostRecentTimeslot", "PrivilegedServices", "RegistrarState",
     "AccumulationQueue", "AccumulationHistory", "Statistics",
     "ServiceDefinition", "ServiceDefinitionData",
-    "ServiceDefinitionDataService", "StateEntry", "State",
+    "ServiceDefinitionDataService", "ServiceAccount", "State",
 ]
