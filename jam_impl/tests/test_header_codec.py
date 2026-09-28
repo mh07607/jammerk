@@ -1,12 +1,7 @@
 """
-Header codec tests against the official jamtestvectors.
-
 bin-vs-json: parse the .bin with decode_header, load the .json with
 Header.from_dict, require equality. encode(parse(bin)) == bin is covered in
 test_codec_roundtrip.py.
-
-Run from the repo root (JAM_Implementation/):
-    uv run jam_impl/tests/test_header_codec.py
 """
 
 import os

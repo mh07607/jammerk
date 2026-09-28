@@ -1,18 +1,13 @@
 """
-Codec round-trip tests against the official jamtestvectors.
-
 For every codec vector of every kind (both specs):
   1. decode(bin) models == json sidecar          (semantic fidelity)
   2. encode(decode(bin)) == bin                  (byte-exact round trip)
-
-Run from the repo root:
-    uv run jam_impl/tests/test_codec_roundtrip.py
 """
 
 import os
 import unittest
 
-from jam_impl.util import Decoder
+from jam_impl.util import Decoder, encode_compact
 from jam_impl.codec.header_codec import (
     decode_header, encode_header, load_vector, spec_globals,
 )
@@ -46,9 +41,28 @@ def eq(a, w) -> bool:
 
 
 def model_to_dict(x):
-    """Typed model -> nested plain dict with hex strings (mirrors the sidecar)."""
+    """Typed model -> nested plain dict with hex strings (mirrors the sidecar).
+
+    ResultItem is special-cased: its WorkResult tag + ResultOk payload
+    collapse into the sidecar's single {"ok": ...} / {"panic": null}
+    outcome object (GP C.34 wire: tag then optional ↕blob).
+    """
+    from jam_impl.models.Extrinsic import ResultItem, WorkResult
     if isinstance(x, (list, tuple)):
         return [model_to_dict(v) for v in x]
+    if isinstance(x, ResultItem):
+        d = {k: model_to_dict(v) for k, v in x.__dict__.items()
+             if k not in ("result", "result_payload")}
+        tag = x.result.value if isinstance(x.result, WorkResult) else int(x.result)
+        if tag == WorkResult.OK.value and x.result_payload is not None:
+            d["result"] = {"ok": "0x" + x.result_payload.ok.hex()}
+        else:
+            names = {
+                1: "panic", 2: "out_of_gas", 3: "invalid_exports_count",
+                4: "digest_size_limit_exceeded", 5: "BAD", 6: "BIG",
+            }
+            d["result"] = {names.get(tag, str(tag)): None}
+        return d
     if hasattr(x, "__dataclass_fields__"):
         return {k: model_to_dict(v) for k, v in x.__dict__.items()}
     if isinstance(x, (bytes, bytearray)):
@@ -104,7 +118,24 @@ class ExtrinsicTupleRoundTrip(unittest.TestCase):
         with spec_globals(spec):
             ext = decode_extrinsic(b, spec=spec)
             self.assertTrue(eq(model_to_dict(ext), j), f"{spec}/{name}: model != json")
-            self.assertEqual(encode_extrinsic(ext), b, f"{spec}/{name}: encode != bin")
+            # the model's own method is the production path now
+            self.assertEqual(ext.encode(spec=spec), b, f"{spec}/{name}: encode != bin")
+            # the tuple is rebuildable from the component methods: each list is
+            # its own compact count + the items' record bytes (a single-item
+            # .encode() is compact(1) + record, so the record is encode()[1:])
+            self.assertEqual(
+                encode_compact(len(ext.tickets))
+                + b"".join(t.encode()[1:] for t in ext.tickets)
+                + encode_compact(len(ext.preimages))
+                + b"".join(p.encode()[1:] for p in ext.preimages)
+                + encode_compact(len(ext.guarantees))
+                + b"".join(g.encode()[1:] for g in ext.guarantees)
+                + encode_compact(len(ext.assurances))
+                + b"".join(a.encode()[1:] for a in ext.assurances)
+                + ext.disputes.encode(spec=spec),
+                b,
+                f"{spec}/{name}: component records != bin",
+            )
 
     def test_tiny_extrinsic(self):
         self._check("tiny", "extrinsic")

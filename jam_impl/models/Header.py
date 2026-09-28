@@ -13,10 +13,19 @@ P, R, X, T, E, W, I, V, O, S — not the GP 5.1 tuple order.
 
 from dataclasses import dataclass
 
+from jam_impl.util import Encoder
+
 
 def hex_to_bytes(s: str) -> bytes:
     """Hex string -> bytes; tolerates an optional 0x prefix."""
     return bytes.fromhex(s[2:] if s.startswith("0x") else s)
+
+
+# The header codec's encoder, resolved lazily like the other model methods
+# (header_codec imports these models at load, so a top-level import cycles).
+def _codec(name):
+    import jam_impl.codec.header_codec as hc
+    return getattr(hc, name)
 
 
 @dataclass
@@ -57,6 +66,10 @@ class Header:  # H = (H_P, H_R, H_X, H_T, H_E, H_W, H_O, H_I, H_V, H_S), GP 5.1
     # The dict shapes below are shared by two sources that agree on keys and
     # differ only in hex formatting: the vector JSON sidecars (0x-prefixed)
     # and the header codec's marker readers (plain .hex()).
+
+    def encode(self) -> bytes:
+        """Serialize the header to its wire form (GP C.22–C.25)."""
+        return _codec('encode_header')(self)
 
     @classmethod
     def epoch_mark_from_dict(cls, d: dict) -> EpochMarker:

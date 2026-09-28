@@ -21,7 +21,7 @@ spec_globals(spec) — nested spec_globals are safe (save/restore).
 import jam_impl.util as util
 from jam_impl.util import Decoder
 from jam_impl.codec.header_codec import (
-    decode_header, encode_header, spec_globals,
+    decode_header, spec_globals,
     decode_epoch_marker, decode_winning_tickets_marker, decode_offenders_marker,
 )
 from jam_impl.codec.extrinsic_codec import decode_extrinsic, encode_extrinsic
@@ -57,4 +57,4 @@ def decode_block(b: bytes, spec: str = "full") -> tuple[Header, Extrinsic]:
 def encode_block(header: Header, ext: Extrinsic, spec: str = "full") -> bytes:
     """Encode a full block: header then extrinsic (GP C.16)."""
     with spec_globals(spec):
-        return encode_header(header) + encode_extrinsic(ext)
+        return header.encode() + ext.encode(spec=spec)

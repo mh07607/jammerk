@@ -24,12 +24,10 @@ bytes) function; decode_extrinsic / encode_extrinsic compose them.
 import jam_impl.util as util
 from jam_impl.util import Decoder, Encoder
 from jam_impl.codec.header_codec import spec_globals
-from jam_impl.models.extrinsic_components.Guarantee import (
+from jam_impl.models.Extrinsic import (
     Ticket, Preimage, Assurance, Guarantee,
     PackageSpec, Context, SegmentRootLookupEntry, RefineLoad,
-    ResultOk, ResultOutOfGas, ResultPanic, ResultInvalidExports,
-    ResultDigestSizeLimit, ResultBadCode, ResultBig,
-    ResultItem, Report, ValidatorSignature,
+    WorkResult, ResultOk, ResultItem, Report, ValidatorSignature,
     Disputes, Verdict, Judgment, Culprit, Fault,
 )
 from jam_impl.models import Extrinsic
@@ -41,37 +39,6 @@ def validators_super_majority() -> int:
 
 def bitfield_octets() -> int:
     return (util.NUM_VALIDATORS_IN_EPOCH_MARK // 3 + 7) // 8
-
-
-# Work-result outcome tags — GP C.34 (0.7.2) / C.36 (0.8.0)
-RESULT_TAG_NAMES = {
-    0: "ok",
-    1: "out_of_gas",
-    2: "panic",
-    3: "invalid_exports_count",
-    4: "digest_size_limit_exceeded",
-    5: "BAD",
-    6: "BIG",
-}
-NAME_TO_RESULT_CLASS = {
-    "ok": ResultOk,
-    "out_of_gas": ResultOutOfGas,
-    "panic": ResultPanic,
-    "invalid_exports_count": ResultInvalidExports,
-    "digest_size_limit_exceeded": ResultDigestSizeLimit,
-    "BAD": ResultBadCode,
-    "BIG": ResultBig,
-}
-
-
-def _tag_from_result(result) -> int:
-    """Result model -> outcome tag (inverse of RESULT_TAG_NAMES)."""
-    if isinstance(result, ResultOk):
-        return 0
-    for tag, name in RESULT_TAG_NAMES.items():
-        if tag and isinstance(result, NAME_TO_RESULT_CLASS[name]):
-            return tag
-    raise ValueError(f"unknown result type {type(result).__name__}")
 
 
 # ---------------------------------------------------------------------------
@@ -158,12 +125,11 @@ def decode_work_result(d: Decoder) -> ResultItem:
     payload_hash = d.hash32()
     accumulate_gas = d.u64()
     tag = d.u8()
-    if tag == 0:
-        result = ResultOk(ok=d.blob())
-    elif tag in RESULT_TAG_NAMES:
-        result = NAME_TO_RESULT_CLASS[RESULT_TAG_NAMES[tag]]()
-    else:
+    try:
+        result = WorkResult(tag)
+    except ValueError:
         raise ValueError(f"invalid work-result tag {tag} (service {service_id})")
+    result_payload = ResultOk(ok=d.blob()) if result is WorkResult.OK else None
     refine_load = RefineLoad(
         gas_used=d.decode_compact(),
         imports=d.decode_compact(),
@@ -173,7 +139,8 @@ def decode_work_result(d: Decoder) -> ResultItem:
     )
     return ResultItem(
         service_id=service_id, code_hash=code_hash, payload_hash=payload_hash,
-        accumulate_gas=accumulate_gas, result=result, refine_load=refine_load,
+        accumulate_gas=accumulate_gas, result=result,
+        result_payload=result_payload, refine_load=refine_load,
     )
 
 
@@ -182,11 +149,14 @@ def encode_work_result(e: Encoder, result_item: ResultItem) -> None:
     e.hash32(result_item.code_hash)
     e.hash32(result_item.payload_hash)
     e.u64(result_item.accumulate_gas)
-    result = result_item.result
-    if isinstance(result, ResultOk):
-        e.u8(0).blob(result.ok)
+    e.u8(result_item.result.value)
+    if result_item.result is WorkResult.OK:
+        assert result_item.result_payload is not None, \
+            "WorkResult.OK requires result_payload (ResultOk)"
+        e.blob(result_item.result_payload.ok)
     else:
-        e.u8(_tag_from_result(result))
+        assert result_item.result_payload is None, \
+            "only WorkResult.OK carries a payload"
     e.compact(result_item.refine_load.gas_used)
     e.compact(result_item.refine_load.imports)
     e.compact(result_item.refine_load.extrinsic_count)
@@ -340,7 +310,7 @@ def encode_disputes(disputes: Disputes) -> bytes:
 # Whole extrinsic  E (GP C.16: order T, P, G, A, D)
 # ---------------------------------------------------------------------------
 
-def decode_extrinsic(b: bytes, spec: str = "full") -> Extrinsic:
+def decode_extrinsic(b: bytes, spec: str = "tiny") -> Extrinsic:
     """Decode the full extrinsic tuple into typed models (GP C.16)."""
     with spec_globals(spec):
         d = Decoder(b)
@@ -355,15 +325,16 @@ def decode_extrinsic(b: bytes, spec: str = "full") -> Extrinsic:
         return ext
 
 
-def encode_extrinsic(ext) -> bytes:
+def encode_extrinsic(ext, spec: str = "tiny") -> bytes:
     """Encode the typed extrinsic tuple back to wire bytes."""
-    return (
-        encode_tickets(ext.tickets)
-        + encode_preimages(ext.preimages)
-        + encode_guarantees(ext.guarantees)
-        + encode_assurances(ext.assurances)
-        + encode_disputes(ext.disputes)
-    )
+    with spec_globals(spec):
+        return (
+            encode_tickets(ext.tickets)
+            + encode_preimages(ext.preimages)
+            + encode_guarantees(ext.guarantees)
+            + encode_assurances(ext.assurances)
+            + encode_disputes(ext.disputes)
+        )
 
 
 if __name__ == "__main__":
