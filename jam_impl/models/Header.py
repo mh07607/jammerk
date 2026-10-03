@@ -71,6 +71,9 @@ class Header:  # H = (H_P, H_R, H_X, H_T, H_E, H_W, H_O, H_I, H_V, H_S), GP 5.1
         """Serialize the header to its wire form (GP C.22–C.25)."""
         return _codec('encode_header')(self)
 
+    def encode_unsigned(self) -> bytes:
+        return _codec('encode_header_unsigned')(self)
+
     @classmethod
     def epoch_mark_from_dict(cls, d: dict) -> EpochMarker:
         return EpochMarker(

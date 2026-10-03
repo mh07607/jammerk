@@ -146,9 +146,7 @@ def decode_header(b: bytes, spec: str = "full") -> Header:
         d.finish()
         return h
 
-
-def encode_header(h: Header) -> bytes:
-    """Encode a Header back to wire bytes (inverse of decode_header)."""
+def encode_header_unsigned(h: Header) -> bytes:
     e = Encoder()
     e.raw(h.parent).raw(h.parent_state_root).raw(h.extrinsic_hash)
     e.u32(h.slot)
@@ -169,5 +167,11 @@ def encode_header(h: Header) -> bytes:
     e.compact(len(h.offenders_mark))
     for key in h.offenders_mark:
         e.raw(key)
+    return e.finish()
+
+def encode_header(h: Header) -> bytes:
+    """Encode a Header back to wire bytes (inverse of decode_header)."""
+    e = Encoder()
+    e.raw(encode_header_unsigned(h))
     e.raw(h.seal)
     return e.finish()
