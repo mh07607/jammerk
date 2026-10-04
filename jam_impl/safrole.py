@@ -21,6 +21,7 @@ public keys of the current validator set.
 from __future__ import annotations
 from jam_impl.models.State import UpcomingValidators, State, TicketBody
 from jam_impl.models.Header import Header
+from jam_impl.models.Extrinsic import Extrinsic
 import jam_impl.util as util
 
 from pathlib import Path
@@ -313,6 +314,34 @@ def apply_entropy_072(state: State, y_h_v: bytes) -> None:
     state.entropy.values[0] = util.hash_via_blake2b(
         state.entropy.values[0] + y_h_v
     )
+
+
+def safrole_stf(pre_state: State, header: Header, extrinsic: Extrinsic, spec):
+    """GP 0.7.2 §6 stf transition for one vector — TO BE IMPLEMENTED.
+
+    Args:
+        pre_state:  semantic State (models.State.State)
+        header:     models.Header.Header — FROM THE STF VECTORS the
+                    derivable fields are honest (slot; extrinsic_hash =
+                    blake2b of the encoded stf input) and the seal/VRF
+                    fields are ZERO-FILLED FAKES (stf vectors externalize
+                    the VRF outputs: no H_S/H_V exists to check). Do NOT
+                    run check_header_seal_and_vrf here; the stf checks
+                    the ticket/key placement and entropy blend instead.
+        extrinsic:  models.Extrinsic.Extrinsic with ONLY the tickets leg
+                    filled (ε_T); slot/η come from the stf input via the
+                    harness (the stf input η substitutes for Y(H_V)).
+        spec:       'tiny' | 'full'
+
+    Returns:
+        ("ok",    {"epoch_mark": E | None, "tickets_mark": W | None},
+         post_state: State, post_offenders: list[bytes])
+        ("err",   <your error name>, post_state: State,
+         post_offenders: list[bytes])
+        with output shapes mirroring the vectors' json sidecars.
+    """
+    
+    raise NotImplementedError("safrole_stf is the part you implement")
 
 if __name__ == "__main__":
     bandersnatch_demo()
