@@ -19,6 +19,7 @@ vendor it. The ring keys themselves are the 32-byte compressed bandersnatch
 public keys of the current validator set.
 """
 from __future__ import annotations
+import dataclasses
 from jam_impl.models.State import UpcomingValidators, State, TicketBody
 from jam_impl.models.Header import Header
 from jam_impl.models.Extrinsic import Extrinsic
@@ -35,9 +36,9 @@ from bandersnatch_vrfs import (
     vrf_output,
 )
 
-JAM_TICKET_SEAL = b'$jam_ticket_seal'
-JAM_ENTROPY = b'$jam_entropy'
-JAM_FALLBACK_SEAL = b'$jam_fallback_seal'
+# JAM_TICKET_SEAL = b'$jam_ticket_seal'
+# JAM_ENTROPY = b'$jam_entropy'
+# JAM_FALLBACK_SEAL = b'$jam_fallback_seal'
 
 # Find the SRS so the script works from any cwd. Canonical copy ships INSIDE
 # the vendored jamtestvectors (stf/safrole/) — the safrole vectors themselves
@@ -151,26 +152,34 @@ def bandersnatch_demo() -> None:
     print()
     print("ALL OK")
 
-def remove_offenders(validators: list[bytes], offenders: list[bytes]):
-    for i in range(len(validators)):
-        if(validators[i] in offenders):
-            validators[i] = b'\0' * 32    
-    return validators
+def remove_offenders(validators: list[ValidatorData], offenders: list[bytes]):    
+    return [
+              dataclasses.replace(v, bandersnatch=b"\x00"*32, ed25519=b"\x00"*32,
+                                  bls=b"\x00"*144, metadata=b"\x00"*128)
+              if v.ed25519 in offenders else v
+              for v in validators
+          ]
     
 def on_epoch_change(state: State):
     # GP 6.13, 6.14
     state.previous_validators.validators = state.current_validators.validators.copy()
     state.current_validators.validators = state.safrole.pending_validators.copy()
-    state.safrole.pending_validators = remove_offenders(state.upcoming_validators.validators.copy(), state.disputes.offenders)
-    state.safrole.epoch_root = bandersnatch_ring_root(state.safrole.pending_validators)
+    state.safrole.pending_validators = remove_offenders(state.upcoming_validators.validators.copy(), state.disputes.offenders if state.disputes else [])
+    state.safrole.epoch_root = bandersnatch_ring_root([validator.bandersnatch for validator in state.safrole.pending_validators])
     old_entropy_values = state.entropy.values.copy()
     # GP 6.23
     state.entropy.values[1] = old_entropy_values[0]
     state.entropy.values[2] = old_entropy_values[1]
     state.entropy.values[3] = old_entropy_values[2]
 
-def fallback_key_sequence():
-    pass
+
+def fallback_key_sequence(entropy: bytes, validator_keys: list[ValidatorData]) -> list[bytes]:
+    fallback_keys = []    
+    for i in range(util.LENGTH_OF_EPOCH_IN_TIMESLOTS):        
+        index = util.decode_fixed(util.hash_via_blake2b(entropy + util.encode_fixed(i, 4))[:4], 4) % len(validator_keys)
+        fallback_keys.append(validator_keys[index].bandersnatch)
+    return fallback_keys
+
 
 def check_header_seal_and_vrf(state: State, header: Header):
     out = None
@@ -316,11 +325,20 @@ def apply_entropy_072(state: State, y_h_v: bytes) -> None:
     )
 
 
-def safrole_stf(pre_state: State, header: Header, extrinsic: Extrinsic, spec):
+def outside_in_sequencer(ticket_accumulator: list[TicketBody]) -> list[TicketBody]:
+    # GP 6.25    
+    first_half = ticket_accumulator[:len(ticket_accumulator)//2]
+    second_half = ticket_accumulator[len(ticket_accumulator)//2:]
+    out: list[TicketBody] = []
+    for i in range(len(ticket_accumulator)//2):
+        out.append(first_half[i]); out.append(second_half[len(second_half) - 1 - i])
+    return out
+
+def safrole_stf(state: State, header: Header, extrinsic: Extrinsic, y_h_v: bytes, spec):
     """GP 0.7.2 §6 stf transition for one vector — TO BE IMPLEMENTED.
 
     Args:
-        pre_state:  semantic State (models.State.State)
+        state:  semantic State (models.State.State)
         header:     models.Header.Header — FROM THE STF VECTORS the
                     derivable fields are honest (slot; extrinsic_hash =
                     blake2b of the encoded stf input) and the seal/VRF
@@ -339,9 +357,56 @@ def safrole_stf(pre_state: State, header: Header, extrinsic: Extrinsic, spec):
         ("err",   <your error name>, post_state: State,
          post_offenders: list[bytes])
         with output shapes mirroring the vectors' json sidecars.
-    """
-    
-    raise NotImplementedError("safrole_stf is the part you implement")
+    """        
+    epoch_mark = None
+    tickets_mark = None
+    post_offenders = []    
+    # output epoch mark
+    block_epoch = header.slot // util.LENGTH_OF_EPOCH_IN_TIMESLOTS
+    block_slot_phase_index = header.slot % util.LENGTH_OF_EPOCH_IN_TIMESLOTS
+    latest_epoch = state.most_recent_timeslot.timeslot // util.LENGTH_OF_EPOCH_IN_TIMESLOTS
+    latest_slot_phase_index = state.most_recent_timeslot.timeslot % util.LENGTH_OF_EPOCH_IN_TIMESLOTS    
+
+    if(state.most_recent_timeslot.timeslot >= header.slot):
+        return "err", "bad_slot", state, post_offenders
+    if len(extrinsic.tickets) > util.MAX_TICKETS_IN_EXTRINSIC:
+        return "err", "tickets_length_exceeded", state, post_offenders
+    if block_slot_phase_index > util.TICKET_SUBMISSION_DEADLINE_IN_TIMESLOTS and len(extrinsic.tickets) != 0:
+        return "err", "tickets_submitted_after_deadline", state, post_offenders
+    # unique_tickets = set()
+    # tickets_accumulated = [ ticket.id for ticket in state.safrole.ticket_accumulator ]
+    # for ticket in extrinsic.tickets:
+    #     if ticket.attempt >= util.MAX_TICKETS_ATTEMPT:
+    #         return "err", "bad_ticket_attempt", state, post_offenders
+    #     if ticket.signature in tickets_accumulated:
+    #         return "err", "duplicate_ticket", state, post_offenders    
+    #     unique_tickets.add(ticket.signature)        
+    # if len(unique_tickets) != len(extrinsic.tickets):
+    #     return "err", "duplicate_ticket", state, post_offenders
+    is_right_after_ticket_submission_deadline = latest_slot_phase_index < util.TICKET_SUBMISSION_DEADLINE_IN_TIMESLOTS <= block_slot_phase_index
+    is_new_epoch = block_epoch > latest_epoch
+    if is_new_epoch:
+        # update entropy
+        on_epoch_change(state)
+        validator_keys = [ { "bandersnatch": key.bandersnatch, "ed25519": key.ed25519 } for key in state.safrole.pending_validators ]
+        epoch_mark = { "entropy": state.entropy.values[1], "tickets_entropy": state.entropy.values[2], "validators": validator_keys }
+    # state will become post
+    elif not is_new_epoch and is_right_after_ticket_submission_deadline  and len(state.safrole.ticket_accumulator) == util.LENGTH_OF_EPOCH_IN_TIMESLOTS:
+        tickets_mark = outside_in_sequencer(state.safrole.ticket_accumulator)
+
+    # slot key sequence
+    if(is_new_epoch and latest_slot_phase_index >= util.TICKET_SUBMISSION_DEADLINE_IN_TIMESLOTS and len(state.safrole.ticket_accumulator) == util.LENGTH_OF_EPOCH_IN_TIMESLOTS):
+        state.safrole.tickets_or_keys = outside_in_sequencer(state.safrole.ticket_accumulator)
+    elif not is_new_epoch:
+        pass
+    else:
+        state.safrole.tickets_or_keys = fallback_key_sequence(state.entropy.values[2], state.current_validators.validators)
+    extrinsic_tickets = [ TicketBody(id=ticket.signature, attempt=ticket.attempt) for ticket in extrinsic.tickets ]
+    state.safrole.ticket_accumulator.extend(extrinsic_tickets)
+    state.safrole.ticket_accumulator.sort(key=lambda ticket: ticket.id)
+    state.most_recent_timeslot.timeslot = header.slot
+    state.entropy.values[0] = util.hash_via_blake2b(state.entropy.values[0] + y_h_v)
+    return "ok", {"epoch_mark": epoch_mark, "tickets_mark": tickets_mark}, state, post_offenders    
 
 if __name__ == "__main__":
     bandersnatch_demo()
