@@ -366,34 +366,32 @@ def safrole_stf(state: State, header: Header, extrinsic: Extrinsic, y_h_v: bytes
     block_slot_phase_index = header.slot % util.LENGTH_OF_EPOCH_IN_TIMESLOTS
     latest_epoch = state.most_recent_timeslot.timeslot // util.LENGTH_OF_EPOCH_IN_TIMESLOTS
     latest_slot_phase_index = state.most_recent_timeslot.timeslot % util.LENGTH_OF_EPOCH_IN_TIMESLOTS    
-
+    # Checking for errors before touching state
     if(state.most_recent_timeslot.timeslot >= header.slot):
         return "err", "bad_slot", state, post_offenders
     if len(extrinsic.tickets) > util.MAX_TICKETS_IN_EXTRINSIC:
         return "err", "tickets_length_exceeded", state, post_offenders
     if block_slot_phase_index > util.TICKET_SUBMISSION_DEADLINE_IN_TIMESLOTS and len(extrinsic.tickets) != 0:
-        return "err", "tickets_submitted_after_deadline", state, post_offenders
-    # unique_tickets = set()
-    # tickets_accumulated = [ ticket.id for ticket in state.safrole.ticket_accumulator ]
-    # for ticket in extrinsic.tickets:
-    #     if ticket.attempt >= util.MAX_TICKETS_ATTEMPT:
-    #         return "err", "bad_ticket_attempt", state, post_offenders
-    #     if ticket.signature in tickets_accumulated:
-    #         return "err", "duplicate_ticket", state, post_offenders    
-    #     unique_tickets.add(ticket.signature)        
-    # if len(unique_tickets) != len(extrinsic.tickets):
-    #     return "err", "duplicate_ticket", state, post_offenders
+        return "err", "tickets_submitted_after_deadline", state, post_offenders        
+    extrinsic_ticket_verifications = []    
+    ctx = RingContext(SRS, [validator.bandersnatch for validator in state.safrole.pending_validators])    
+    for ticket in extrinsic.tickets:
+        if ticket.attempt >= util.MAX_TICKETS_ATTEMPT:
+            return "err", "bad_ticket_attempt", state, post_offenders        
+        out = ctx.ring_vrf_verify(vrf_input_data=X_TICKET + state.entropy.values[2] + ticket.attempt.to_bytes(1), aux_data=b'', signature=ticket.signature)        
+        if out in [ticket.id for ticket in state.safrole.ticket_accumulator]:
+            return "err", "duplicate_ticket", state, post_offenders
+        extrinsic_ticket_verifications.append((ticket.attempt, out))
+
     is_right_after_ticket_submission_deadline = latest_slot_phase_index < util.TICKET_SUBMISSION_DEADLINE_IN_TIMESLOTS <= block_slot_phase_index
     is_new_epoch = block_epoch > latest_epoch
     if is_new_epoch:
         # update entropy
-        on_epoch_change(state)
+        on_epoch_change(state)        
         validator_keys = [ { "bandersnatch": key.bandersnatch, "ed25519": key.ed25519 } for key in state.safrole.pending_validators ]
-        epoch_mark = { "entropy": state.entropy.values[1], "tickets_entropy": state.entropy.values[2], "validators": validator_keys }
-    # state will become post
+        epoch_mark = { "entropy": state.entropy.values[1], "tickets_entropy": state.entropy.values[2], "validators": validator_keys }    
     elif not is_new_epoch and is_right_after_ticket_submission_deadline  and len(state.safrole.ticket_accumulator) == util.LENGTH_OF_EPOCH_IN_TIMESLOTS:
         tickets_mark = outside_in_sequencer(state.safrole.ticket_accumulator)
-
     # slot key sequence
     if(is_new_epoch and latest_slot_phase_index >= util.TICKET_SUBMISSION_DEADLINE_IN_TIMESLOTS and len(state.safrole.ticket_accumulator) == util.LENGTH_OF_EPOCH_IN_TIMESLOTS):
         state.safrole.tickets_or_keys = outside_in_sequencer(state.safrole.ticket_accumulator)
@@ -401,9 +399,15 @@ def safrole_stf(state: State, header: Header, extrinsic: Extrinsic, y_h_v: bytes
         pass
     else:
         state.safrole.tickets_or_keys = fallback_key_sequence(state.entropy.values[2], state.current_validators.validators)
-    extrinsic_tickets = [ TicketBody(id=ticket.signature, attempt=ticket.attempt) for ticket in extrinsic.tickets ]
-    state.safrole.ticket_accumulator.extend(extrinsic_tickets)
+    
+    extrinsic_tickets = [TicketBody(id=verification[1], attempt=verification[0]) for verification in extrinsic_ticket_verifications]
+    if(is_new_epoch):
+        state.safrole.ticket_accumulator = extrinsic_tickets        
+    else:
+        state.safrole.ticket_accumulator.extend(extrinsic_tickets)
     state.safrole.ticket_accumulator.sort(key=lambda ticket: ticket.id)
+    if(len(state.safrole.ticket_accumulator) > util.LENGTH_OF_EPOCH_IN_TIMESLOTS):
+        state.safrole.ticket_accumulator = state.safrole.ticket_accumulator[:util.LENGTH_OF_EPOCH_IN_TIMESLOTS]
     state.most_recent_timeslot.timeslot = header.slot
     state.entropy.values[0] = util.hash_via_blake2b(state.entropy.values[0] + y_h_v)
     return "ok", {"epoch_mark": epoch_mark, "tickets_mark": tickets_mark}, state, post_offenders    

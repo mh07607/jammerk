@@ -596,32 +596,7 @@
     "0x151e5c8fe2b9d8a606966a79edd2f9e5db47e83947ce368ccba53bf6ba20a40b",
     "0xdee6d555b82024f1ccf8a1e37e60fa60fd40b1958c4bb3006af78647950e1b91"
    ],
-   "ticket_accumulator": [
-    {
-     "id": "0x00e51b1c58522256026b3af0c9d949a180011007ec74147189228656e9d21d1d",
-     "attempt": 0
-    },
-    {
-     "id": "0x015d2d6f572a572c6c79f7d1ea94eb2630451cba75a15cabb60515c1d490bd6f",
-     "attempt": 1
-    },
-    {
-     "id": "0x20164381817cf8cd21d6c8b734840e2d6678f183e3de02fddf4beb7a946c37c6",
-     "attempt": 2
-    },
-    {
-     "id": "0x3434191832f29b5d09d6096d98dd3d62a5bd5bbd4efc02dcbdc4473294ec2da9",
-     "attempt": 2
-    },
-    {
-     "id": "0x5af49b10c9e179288cfbfdc55e9afe0d2ac770b266cb73f751d3d4e9eb23b348",
-     "attempt": 1
-    },
-    {
-     "id": "0xeeb2d4c4ace4b68098fcf913ca2457d81ec141ae29aec330e1c0f51ae534752a",
-     "attempt": 0
-    }
-   ]
+   "ticket_accumulator": []
   },
   "disputes": {
    "good": [],
@@ -769,10 +744,8 @@
   "accounts": {},
   "undecoded": []
  },
- "encoded_len": 8925,
+ "encoded_len": 8727,
  "want_len": 8727,
- "match": false,
- "diff_notes": [
-  "gamma_a: len 6 != 0"
- ]
+ "match": true,
+ "diff_notes": []
 }
