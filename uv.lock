@@ -3,6 +3,20 @@ revision = 3
 requires-python = ">=3.14"
 
 [[package]]
+name = "bandersnatch-vrfs"
+version = "0.6.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a6/1a/aa0a9bf02967781e5c40fc6ee6c42f8cbecc3f9273ab1cdf6a244f231096/bandersnatch_vrfs-0.6.1.tar.gz", hash = "sha256:0e5c87a4c46d8ab25111823bebb6af3e926b2e28ad85334018a218f82e1c42d9", size = 29225089, upload-time = "2025-12-08T12:57:15.739Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/eb/10/3741b628a7743a5dad87db36ccefea7dfc679684c1931f7e7fb9a9ccba5a/bandersnatch_vrfs-0.6.1-cp314-cp314-macosx_10_12_x86_64.whl", hash = "sha256:a5e947792a653f7e8495f036877956ec98fb0c20cb46b02749f8147b63aa0649", size = 682548, upload-time = "2025-12-08T12:56:17.255Z" },
+    { url = "https://files.pythonhosted.org/packages/49/76/718cc097926dbafb2298681f72c4f3eb815ab70afa744d2b83c352f8bb29/bandersnatch_vrfs-0.6.1-cp314-cp314-macosx_11_0_arm64.whl", hash = "sha256:3204801cc8cf8a084846d4bf822fa114a392318ea9f80c500d5cb8e50f3832f8", size = 650464, upload-time = "2025-12-08T12:56:12.182Z" },
+    { url = "https://files.pythonhosted.org/packages/84/3b/fd84af6b56c9d8b963fcb9700332a3b51d74cce551752e05d453334df427/bandersnatch_vrfs-0.6.1-cp314-cp314-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:d7acc7bc940d338e2479a0bc464c3943318cb7058992763e2c78d17585872a95", size = 991731, upload-time = "2025-12-08T12:55:53.785Z" },
+    { url = "https://files.pythonhosted.org/packages/45/e0/3e424a243e5bb22163dad01dc49ca37fdc6029b715aab5a805f660f8aa7e/bandersnatch_vrfs-0.6.1-cp314-cp314-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:8b9d5f35ffe10ff3747ed6e717db629012e1c015dbcbb0034a8a0fd92c121eb0", size = 733719, upload-time = "2025-12-08T12:56:03.871Z" },
+    { url = "https://files.pythonhosted.org/packages/df/36/93623299b8f4014dc79648db8ee22637f3bf5521ee812ee8a9a15cfe09b3/bandersnatch_vrfs-0.6.1-cp314-cp314-win32.whl", hash = "sha256:b7435181d11687055184a02dc1695c0cdb2fac7a46c5bd3099b1dfa186d9a0ea", size = 627740, upload-time = "2025-12-08T12:57:25.616Z" },
+    { url = "https://files.pythonhosted.org/packages/0f/25/c5968ca37190875f9899b8ed2fe34b474da84ec85d89e2ddb2a43264ccc9/bandersnatch_vrfs-0.6.1-cp314-cp314-win_amd64.whl", hash = "sha256:dfdff2ebf892b6ff7fdef9ee73b2cb7bf34df4466ce95330fc12ff7c66ca2cb4", size = 533431, upload-time = "2025-12-08T12:57:23.15Z" },
+]
+
+[[package]]
 name = "colorama"
 version = "0.4.6"
 source = { registry = "https://pypi.org/simple" }
@@ -27,6 +41,7 @@ source = { editable = "." }
 
 [package.dev-dependencies]
 dev = [
+    { name = "bandersnatch-vrfs" },
     { name = "pytest" },
     { name = "tqdm" },
 ]
@@ -35,6 +50,7 @@ dev = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "bandersnatch-vrfs" },
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "tqdm" },
 ]

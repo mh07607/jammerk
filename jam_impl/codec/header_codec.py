@@ -23,6 +23,9 @@ from jam_impl.models import Header, EpochMarker, TicketBody, ValidatorKeys, hex_
 # jam-types-py jam_types/spec.py, and util.py's own globals.
 VALIDATORS_COUNT = {"tiny": 6, "full": 1023}   # validators-count
 EPOCH_LENGTH = {"tiny": 12, "full": 600}       # epoch-length
+TICKETS_PER_VALIDATOR = {"tiny": 3, "full": 2}
+MAX_TICKETS_PER_EXTRINSIC = {"tiny": 3, "full": 16}
+CONTEST_DURATION = {"tiny": 10, "full": 500}
 
 # jamtestvectors/codec/<spec>/<name>.{bin,json} — repo root is this file's
 # parent's parent's parent (jam_impl/codec/header_codec.py -> repo root).
@@ -55,6 +58,8 @@ def spec_globals(spec: str):
     saved = (util.NUM_VALIDATORS_IN_EPOCH_MARK, util.LENGTH_OF_EPOCH_IN_TIMESLOTS)
     util.NUM_VALIDATORS_IN_EPOCH_MARK = VALIDATORS_COUNT[spec]
     util.LENGTH_OF_EPOCH_IN_TIMESLOTS = EPOCH_LENGTH[spec]
+    util.MAX_TICKETS_ATTEMPT = TICKETS_PER_VALIDATOR[spec]
+    util.TICKET_SUBMISSION_DEADLINE_IN_TIMESLOTS = CONTEST_DURATION[spec]
     try:
         yield
     finally:
@@ -146,9 +151,7 @@ def decode_header(b: bytes, spec: str = "full") -> Header:
         d.finish()
         return h
 
-
-def encode_header(h: Header) -> bytes:
-    """Encode a Header back to wire bytes (inverse of decode_header)."""
+def encode_header_unsigned(h: Header) -> bytes:
     e = Encoder()
     e.raw(h.parent).raw(h.parent_state_root).raw(h.extrinsic_hash)
     e.u32(h.slot)
@@ -169,5 +172,11 @@ def encode_header(h: Header) -> bytes:
     e.compact(len(h.offenders_mark))
     for key in h.offenders_mark:
         e.raw(key)
+    return e.finish()
+
+def encode_header(h: Header) -> bytes:
+    """Encode a Header back to wire bytes (inverse of decode_header)."""
+    e = Encoder()
+    e.raw(encode_header_unsigned(h))
     e.raw(h.seal)
     return e.finish()
