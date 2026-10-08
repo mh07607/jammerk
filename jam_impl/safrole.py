@@ -360,8 +360,7 @@ def safrole_stf(state: State, header: Header, extrinsic: Extrinsic, y_h_v: bytes
     """        
     epoch_mark = None
     tickets_mark = None
-    post_offenders = []    
-    # output epoch mark
+    post_offenders = []        
     block_epoch = header.slot // util.LENGTH_OF_EPOCH_IN_TIMESLOTS
     block_slot_phase_index = header.slot % util.LENGTH_OF_EPOCH_IN_TIMESLOTS
     latest_epoch = state.most_recent_timeslot.timeslot // util.LENGTH_OF_EPOCH_IN_TIMESLOTS
@@ -371,20 +370,28 @@ def safrole_stf(state: State, header: Header, extrinsic: Extrinsic, y_h_v: bytes
         return "err", "bad_slot", state, post_offenders
     if len(extrinsic.tickets) > util.MAX_TICKETS_IN_EXTRINSIC:
         return "err", "tickets_length_exceeded", state, post_offenders
-    if block_slot_phase_index > util.TICKET_SUBMISSION_DEADLINE_IN_TIMESLOTS and len(extrinsic.tickets) != 0:
-        return "err", "tickets_submitted_after_deadline", state, post_offenders        
+    if block_slot_phase_index >= util.TICKET_SUBMISSION_DEADLINE_IN_TIMESLOTS and len(extrinsic.tickets) != 0:
+        return "err", "unexpected_ticket", state, post_offenders
     extrinsic_ticket_verifications = []    
     ctx = RingContext(SRS, [validator.bandersnatch for validator in state.safrole.pending_validators])    
     for ticket in extrinsic.tickets:
         if ticket.attempt >= util.MAX_TICKETS_ATTEMPT:
-            return "err", "bad_ticket_attempt", state, post_offenders        
-        out = ctx.ring_vrf_verify(vrf_input_data=X_TICKET + state.entropy.values[2] + ticket.attempt.to_bytes(1), aux_data=b'', signature=ticket.signature)        
+            return "err", "bad_ticket_attempt", state, post_offenders    
+        try:
+            out = ctx.ring_vrf_verify(vrf_input_data=X_TICKET + state.entropy.values[2] + ticket.attempt.to_bytes(1), aux_data=b'', signature=ticket.signature)        
+        except ValueError as e:            
+            return "err", "bad_ticket_proof", state, post_offenders
         if out in [ticket.id for ticket in state.safrole.ticket_accumulator]:
             return "err", "duplicate_ticket", state, post_offenders
         extrinsic_ticket_verifications.append((ticket.attempt, out))
+    sorted_extrinsic_ticket_verifications = sorted(extrinsic_ticket_verifications, key = lambda x: x[1])
+    for i in range(len(extrinsic_ticket_verifications)):
+        if extrinsic_ticket_verifications[i][1] != sorted_extrinsic_ticket_verifications[i][1]:
+            return "err", "bad_ticket_order", state, post_offenders
 
     is_right_after_ticket_submission_deadline = latest_slot_phase_index < util.TICKET_SUBMISSION_DEADLINE_IN_TIMESLOTS <= block_slot_phase_index
     is_new_epoch = block_epoch > latest_epoch
+    is_next_epoch = block_epoch == latest_epoch + 1
     if is_new_epoch:
         # update entropy
         on_epoch_change(state)        
@@ -393,11 +400,13 @@ def safrole_stf(state: State, header: Header, extrinsic: Extrinsic, y_h_v: bytes
     elif not is_new_epoch and is_right_after_ticket_submission_deadline  and len(state.safrole.ticket_accumulator) == util.LENGTH_OF_EPOCH_IN_TIMESLOTS:
         tickets_mark = outside_in_sequencer(state.safrole.ticket_accumulator)
     # slot key sequence
-    if(is_new_epoch and latest_slot_phase_index >= util.TICKET_SUBMISSION_DEADLINE_IN_TIMESLOTS and len(state.safrole.ticket_accumulator) == util.LENGTH_OF_EPOCH_IN_TIMESLOTS):
+    if(is_next_epoch and latest_slot_phase_index >= util.TICKET_SUBMISSION_DEADLINE_IN_TIMESLOTS and len(state.safrole.ticket_accumulator) == util.LENGTH_OF_EPOCH_IN_TIMESLOTS):        
+        state.safrole.tickets_or_keys_flag = 0
         state.safrole.tickets_or_keys = outside_in_sequencer(state.safrole.ticket_accumulator)
-    elif not is_new_epoch:
+    elif block_epoch == latest_epoch:
         pass
-    else:
+    else:        
+        state.safrole.tickets_or_keys_flag = 1
         state.safrole.tickets_or_keys = fallback_key_sequence(state.entropy.values[2], state.current_validators.validators)
     
     extrinsic_tickets = [TicketBody(id=verification[1], attempt=verification[0]) for verification in extrinsic_ticket_verifications]

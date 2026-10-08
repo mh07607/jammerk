@@ -274,10 +274,7 @@
   "err": "unexpected_ticket"
  },
  "output": {
-  "ok": {
-   "epoch_mark": null,
-   "tickets_mark": null
-  }
+  "err": "unexpected_ticket"
  },
  "expected_post": {
   "authorization_pool": null,
@@ -592,10 +589,6 @@
      "attempt": 1
     },
     {
-     "id": "0x847cd06ae52c37aa9488a0c7f9241da8701b4c7fef3be1180c5734efa80e1eb4",
-     "attempt": 0
-    },
-    {
      "id": "0xeeb2d4c4ace4b68098fcf913ca2457d81ec141ae29aec330e1c0f51ae534752a",
      "attempt": 0
     }
@@ -609,7 +602,7 @@
   },
   "entropy": {
    "values": [
-    "0x760612c571119ba1af27e99ad6c47b3905469f87cb0453e648df973d003f2160",
+    "0xf164ce89b10488598cb295e4eef273fb8977722f4d6b2754b970ac77b45fa29b",
     "0xee155ace9c40292074cb6aff8c9ccdd273c81648ff1149ef36bcea6ebb8a3e25",
     "0xbb30a42c1e62f0afda5f0a4e8a562f7a13a24cea00ee81917b86b89e801314aa",
     "0xe88bd757ad5b9bedf372d8d3f0cf6c962a469db61a265f6418e1ffed86da29ec"
@@ -737,7 +730,7 @@
   },
   "availability_assignments": null,
   "most_recent_timeslot": {
-   "timeslot": 10
+   "timeslot": 2
   },
   "privileged_services": null,
   "registrar": null,
@@ -747,20 +740,8 @@
   "accounts": {},
   "undecoded": []
  },
- "encoded_len": 8958,
+ "encoded_len": 8925,
  "want_len": 8925,
- "match": false,
- "diff_notes": [
-  "tau: 10 != 2 \u2014 \u03c4\u2032 must equal the block's header slot (header.slot=10)",
-  "eta[0]: f164ce89 != got 760612c5 \u2014 \u03b7\u2080\u2032 = H(pre \u03b7\u2080 \u2016 \u03b7_input)",
-  "  \u2026yours == blend(pre \u03b7\u2080\u2016\u03b7_input): pre \u03b7\u2080 or \u03b7_input mismatch upstream",
-  "gamma_a: len 7 != 6"
- ],
- "verdict_mismatch": {
-  "stub": "ok",
-  "stub_err": null,
-  "expected": {
-   "err": "unexpected_ticket"
-  }
- }
+ "match": true,
+ "diff_notes": []
 }

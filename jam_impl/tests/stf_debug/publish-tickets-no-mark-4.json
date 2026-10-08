@@ -278,10 +278,7 @@
   "err": "bad_ticket_order"
  },
  "output": {
-  "ok": {
-   "epoch_mark": null,
-   "tickets_mark": null
-  }
+  "err": "bad_ticket_order"
  },
  "expected_post": {
   "authorization_pool": null,
@@ -574,18 +571,6 @@
     {
      "id": "0x20164381817cf8cd21d6c8b734840e2d6678f183e3de02fddf4beb7a946c37c6",
      "attempt": 2
-    },
-    {
-     "id": "0x3434191832f29b5d09d6096d98dd3d62a5bd5bbd4efc02dcbdc4473294ec2da9",
-     "attempt": 2
-    },
-    {
-     "id": "0x5af49b10c9e179288cfbfdc55e9afe0d2ac770b266cb73f751d3d4e9eb23b348",
-     "attempt": 1
-    },
-    {
-     "id": "0xeeb2d4c4ace4b68098fcf913ca2457d81ec141ae29aec330e1c0f51ae534752a",
-     "attempt": 0
     }
    ]
   },
@@ -597,7 +582,7 @@
   },
   "entropy": {
    "values": [
-    "0xf164ce89b10488598cb295e4eef273fb8977722f4d6b2754b970ac77b45fa29b",
+    "0xa0243a82952899598fcbc74aff0df58a71059a9882d4416919055c5d64bf2a45",
     "0xee155ace9c40292074cb6aff8c9ccdd273c81648ff1149ef36bcea6ebb8a3e25",
     "0xbb30a42c1e62f0afda5f0a4e8a562f7a13a24cea00ee81917b86b89e801314aa",
     "0xe88bd757ad5b9bedf372d8d3f0cf6c962a469db61a265f6418e1ffed86da29ec"
@@ -725,7 +710,7 @@
   },
   "availability_assignments": null,
   "most_recent_timeslot": {
-   "timeslot": 2
+   "timeslot": 1
   },
   "privileged_services": null,
   "registrar": null,
@@ -735,20 +720,8 @@
   "accounts": {},
   "undecoded": []
  },
- "encoded_len": 8925,
+ "encoded_len": 8826,
  "want_len": 8826,
- "match": false,
- "diff_notes": [
-  "tau: 2 != 1 \u2014 \u03c4\u2032 must equal the block's header slot (header.slot=2)",
-  "eta[0]: a0243a82 != got f164ce89 \u2014 \u03b7\u2080\u2032 = H(pre \u03b7\u2080 \u2016 \u03b7_input)",
-  "  \u2026yours == blend(pre \u03b7\u2080\u2016\u03b7_input): pre \u03b7\u2080 or \u03b7_input mismatch upstream",
-  "gamma_a: len 6 != 3"
- ],
- "verdict_mismatch": {
-  "stub": "ok",
-  "stub_err": null,
-  "expected": {
-   "err": "bad_ticket_order"
-  }
- }
+ "match": true,
+ "diff_notes": []
 }

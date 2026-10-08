@@ -454,7 +454,19 @@ def _state_diff_msgs(expected, stub, inp=None, pre=None, limit=12):
                     break
         elif name == "gamma_s" and isinstance(en, tuple) and isinstance(sn, tuple):
             if sn[0] != en[0]:
-                msgs.append(f"gamma_s: kind flag {sn[0]} != {en[0]} (0=tickets, 1=fallback keys)")
+                kind = {0: "tickets", 1: "fallback keys"}
+                msgs.append(
+                    f"gamma_s: kind flag differs — expected {en[0]} ({kind.get(en[0], '?')},"
+                    f" the vector's post-state) but your stub produced {sn[0]}"
+                    f" ({kind.get(sn[0], '?')}). Expected {kind.get(en[0], en[0])} means:"
+                    + (f" γs' should hold E winning tickets = Z(γa) — the enact branch"
+                       f" (e' > e, prior slot in tail, |γa| == E) must also FLIP the flag"
+                       f" to 0 and replace contents"
+                       if en[0] == 0 else
+                       " γs' should hold fallback keys = F(η₂′, κ′) — computed ONLY on"
+                       " an epoch change where the contest did NOT conclude (|γa| < E"
+                       " or prior slot pre-tail); check you didn't seat tickets without"
+                       " flipping the flag"))
             else:
                 ea, sa = _norm_val(en[1]), _norm_val(sn[1])
                 ndiff = sum(1 for x, y in zip(ea, sa) if x != y)
@@ -563,6 +575,26 @@ def run_vector(path_no_ext, verbose=True):
                     "expected_post_state": _jsonify(post_decoded),
                     "post_state_span": (post_at, len(b)),
                     "debug_json": dbg}
+        except BaseException as ex:
+            # The stf RAISED instead of returning an err leg (bandersnatch
+            # ValueError mid-verify, an index bug, …). Suite must keep moving:
+            # log a CRASH row AND compare the expected verdict — a vector whose
+            # expected output is err is still 'handled' only if the stub said
+            # so; an ok-vector crash is an unconditional FAIL.
+            import traceback
+            ex_name = type(ex).__name__
+            return {"name": os.path.basename(path_no_ext),
+                    "verdict": "CRASH",
+                    "why": f"{ex_name}: {ex}",
+                    "traceback": traceback.format_exc(),
+                    "expected_output": j["output"],
+                    "debug_json": _dump_debug(
+                        vector=path_no_ext, pre=pre,
+                        inp={"slot": slot, "eta": eta, "tickets": tickets},
+                        header=header, extrinsic=input_data,
+                        expected_output=j["output"],
+                        failure={"kind": "stub-exception", "exception": f"{ex_name}: {ex}",
+                                 "traceback": traceback.format_exc()})}
 
         stub_verdict = stub_out[0]
         if stub_verdict == "ok":
@@ -579,7 +611,32 @@ def run_vector(path_no_ext, verbose=True):
                                      "offenders", []) or []
 
         if isinstance(stub_post, State):
-            encoded = _encode_stf_state(stub_post, stub_offenders)
+            try:
+                encoded = _encode_stf_state(stub_post, stub_offenders)
+            except (TypeError, ValueError, AssertionError) as ex:
+                # The stub's post-state cannot be serialized (e.g. γs flag=1
+                # while entries are TicketBody records — flag/content
+                # mismatch). Stub bug; report as CRASH with the shape
+                # evidence instead of a dead suite.
+                sf = stub_post.safrole
+                shape = {
+                    "kind": "post-state-encode",
+                    "exception": f"{type(ex).__name__}: {ex}",
+                    "gamma_s_flag": sf.tickets_or_keys_flag,
+                    "gamma_s_len": len(sf.tickets_or_keys),
+                    "gamma_s_first_elem": type(sf.tickets_or_keys[0]).__name__
+                                          if sf.tickets_or_keys else None,
+                    "gamma_a_len": len(sf.ticket_accumulator),
+                }
+                return {"name": os.path.basename(path_no_ext),
+                        "verdict": "CRASH",
+                        "why": f"post-state encode: {type(ex).__name__}: {ex}",
+                        "traceback": __import__("traceback").format_exc(),
+                        "debug_json": _dump_debug(
+                            vector=path_no_ext, pre=pre,
+                            inp={"slot": slot, "eta": eta, "tickets": tickets},
+                            header=header, extrinsic=input_data,
+                            expected_output=j["output"], failure=shape)}
         elif isinstance(stub_post, bytes):
             encoded = stub_post  # stub may hand back pre-encoded bytes
         else:
@@ -714,8 +771,12 @@ def main(argv):
         try:
             rep = run_vector(path)
         except ValueError as ex:
+            # A ValueError escaping run_vector mid-hook (e.g. bandersnatch
+            # 'Verification error' raised by the STUB's ring-verify loop) is a
+            # stub failure row, not a dead suite — classify as CRASH.
             failed += 1
-            print(f"  HARNESS-FAIL {os.path.basename(path)}: {ex!r}")
+            print(f"  CRASH {os.path.basename(path)}: {ex!r} (stub raised;"
+                  f" suite continues)")
             continue
         except Exception as ex:  # a crash in the stf is a log row, not a dead suite
             import traceback
@@ -735,6 +796,9 @@ def main(argv):
         elif verdict == "HARNESS-FAIL":
             failed += 1
             print(f"  HARNESS-FAIL {rep['name']}: {rep['why']}")
+        elif verdict == "CRASH":
+            failed += 1
+            print(f"  CRASH {rep['name']}: {rep['why']} (stub raised; debug={rep['debug_json']})")
         else:
             failed += 1
             why = f" why={rep['why']}" if "why" in rep else ""
