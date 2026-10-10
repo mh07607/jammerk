@@ -1,0 +1,49 @@
+{
+ "vector": "/home/arsalan/repos/JAM_Implementation/jamtestvectors/stf/disputes/tiny/progress_with_no_verdicts-1",
+ "input": {
+  "verdicts": [],
+  "culprits": [],
+  "faults": []
+ },
+ "expected_output": {
+  "ok": {
+   "offenders_mark": []
+  }
+ },
+ "output": {
+  "ok": []
+ },
+ "expected_post": [
+  {
+   "good": [],
+   "bad": [],
+   "wonky": [],
+   "offenders": []
+  },
+  {
+   "assignments": [
+    null,
+    null
+   ]
+  },
+  {
+   "timeslot": 0
+  }
+ ],
+ "stub_post": [
+  {
+   "good": [],
+   "bad": [],
+   "wonky": [],
+   "offenders": []
+  },
+  {
+   "assignments": [
+    null,
+    null
+   ]
+  }
+ ],
+ "match": true,
+ "diff_notes": []
+}

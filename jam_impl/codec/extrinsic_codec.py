@@ -165,20 +165,15 @@ def encode_work_result(e: Encoder, result_item: ResultItem) -> None:
 
 
 def decode_report(d: Decoder) -> Report:
-    """Work report — GP C.29.
-
-    Wire order (verified against guarantees_extrinsic.bin): package_spec,
-    context, core (u8), authorizer hash, auth gas (compact), ↕auth output,
-    ↕segment-root lookup, ↕results.
-    """
+    # GP C.29
     package_spec = decode_package_spec(d)
     context = decode_context(d)
     report = Report(
         package_spec=package_spec,
         context=context,
-        core_index=d.u8(),
+        core_index=d.decode_compact(),
         authorizer_hash=d.hash32(),
-        auth_gas_used=d.decode_compact(),   # compact N, NOT E8 (verified)
+        auth_gas_used=d.decode_compact(),
         auth_output=d.blob(),
         segment_root_lookup=[
             SegmentRootLookupEntry(work_package_hash=d.hash32(), segment_tree_root=d.hash32())
@@ -193,7 +188,7 @@ def decode_report(d: Decoder) -> Report:
 def encode_report(e: Encoder, report: Report) -> None:
     encode_package_spec(e, report.package_spec)
     encode_context(e, report.context)
-    e.u8(report.core_index)
+    e.compact(report.core_index)
     e.hash32(report.authorizer_hash)
     e.compact(report.auth_gas_used)
     e.blob(report.auth_output)

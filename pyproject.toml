@@ -17,7 +17,8 @@ build-backend = "uv_build"
 dev = [
     "pytest>=9.1.1",
     "tqdm",
-    "bandersnatch-vrfs"
+    "bandersnatch-vrfs",
+    "pynacl>=1.6.2",
 ]
 
 [tool.uv.build-backend]
