@@ -1,0 +1,18 @@
+      #    Error                         Meaning / guarding rule
+      ───  ────────────────────────────  ───────────────────────────────────────────────────────────────────────────────
+      0    already_judged                verdict's report hash already in ψ.good/bad/wonky — no double-judging
+      1    bad_vote_split                judgments not homogeneous and not a valid super-majority (verdicts-5)
+      2    verdicts_not_sorted_unique    ε_D's verdict list not strictly ascending by report hash (verdicts-3)
+      3    judgements_not_sorted_unique  within a verdict, judge indices not strictly ascending/unique (verdicts-1/-2)
+      4    culprits_not_sorted_unique    culprits not sorted by key / duplicates (culprits-3)
+      5    faults_not_sorted_unique      same for faults (faults-3)
+      6    not_enough_culprits           a bad verdict without ≥2 culprits (culprits-1 missing, -2 single)
+      7    not_enough_faults             a good non-unanimous verdict without faults explaining the dissent (faults-1)
+      8    culprits_verdict_not_bad      culprits named for a report not judged bad (culprits-7)
+      9    fault_verdict_wrong           fault's vote octet contradicts the verdict it cites (faults-7)
+      10   offender_already_reported     culprit/fault key already in ψ.offenders (culprits-6, faults-6)
+      11   bad_judgement_age             verdict age vs current epoch out of the allowed window (previous_set-2)
+      12   bad_validator_index           judge/assurer index ≥ validator count — the one code no static vector exercises
+      13   bad_signature                 an ed25519 signature fails verification (bad_signatures-1/-2)
+      14   bad_guarantor_key             culprit key not in the validator set (invalid_keys-1)
+      15   bad_auditor_key               fault key not in the validator set (invalid_keys-2)

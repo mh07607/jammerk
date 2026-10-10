@@ -1,0 +1,97 @@
+{
+ "vector": "/home/arsalan/repos/JAM_Implementation/jamtestvectors/stf/disputes/tiny/progress_with_invalid_keys-2",
+ "input": {
+  "verdicts": [
+   {
+    "target": "0x0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8",
+    "age": 0,
+    "votes": [
+     {
+      "vote": true,
+      "index": 0,
+      "signature": "0xdc44d1d9a683b25d0c1efe93a7c2a93a0725d746b597b416d2cd82506f73df3bc3aec8bb5d0169161aa7c2a4648a54f40336b1cea120201c6ce2563e9e988e0b"
+     },
+     {
+      "vote": true,
+      "index": 1,
+      "signature": "0xc4992a26a232058b3e39bcb20256675ba83067333c505876a9adce84ee018eafe955facb9571eefe14e5027476dca5304a6d3b2f0e45245bd410b12aa68da70e"
+     },
+     {
+      "vote": true,
+      "index": 2,
+      "signature": "0xc677c2200a90f71f4903d35c6b207724adb3da31a6b9d59ba08111b829acbc949954840197be69dbd908f0a2da025fc4519188cdd63b20b6b36bb8ee3ab8ad01"
+     },
+     {
+      "vote": true,
+      "index": 3,
+      "signature": "0xee8476d5e7a8d987b2389fda3fe9c3913e79cd040084d873758e61752c18482436352831f418dcb1b068a546690bc19f9e91aa0151322449cf2c0b6e9235f806"
+     },
+     {
+      "vote": true,
+      "index": 4,
+      "signature": "0xee208177387945c19ceb454c0d4e69680778ecac24b923d2808a97af526819a6965ea4a02e5d558dadf155fe2678308cf78017c4e4ee10418e06e4556500ed0d"
+     }
+    ]
+   }
+  ],
+  "culprits": [],
+  "faults": [
+   {
+    "target": "0x0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8",
+    "vote": false,
+    "key": "0x1501384b242e92f978cbd478f02d2c7d54e9e1dc2e0c26844b00f4a3547fb0e9",
+    "signature": "0x44dc517d51b4cd74e31628e8abac2a2a2e043437b208149c02325f877ced90fef5f23b3337920d79626b1400ca102b143e722d529f0d3e56b9d8981b43fe430d"
+   },
+   {
+    "target": "0x0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8",
+    "vote": false,
+    "key": "0xab0084d01534b31c1dd87c81645fd762482a90027754041ca1b56133d0466c06",
+    "signature": "0xcc30953c3a2c91027d881e8268bb57716cb1b52eba5069ed787b851734863601271a14658e238a6ca9e6b611846b8367f5ae0b256a5558efe2cb67f745f83601"
+   }
+  ]
+ },
+ "expected_output": {
+  "err": "bad_auditor_key"
+ },
+ "output": {
+  "ok": {
+   "err": "bad_auditor_key"
+  }
+ },
+ "expected_post": [
+  {
+   "good": [],
+   "bad": [],
+   "wonky": [],
+   "offenders": []
+  },
+  {
+   "assignments": [
+    null,
+    null
+   ]
+  },
+  {
+   "timeslot": 0
+  }
+ ],
+ "stub_post": [
+  {
+   "good": [],
+   "bad": [],
+   "wonky": [],
+   "offenders": []
+  },
+  {
+   "assignments": [
+    null,
+    null
+   ]
+  },
+  {
+   "timeslot": 0
+  }
+ ],
+ "match": true,
+ "diff_notes": []
+}
