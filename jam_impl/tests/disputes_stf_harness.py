@@ -279,19 +279,20 @@ def run_vector(path_no_ext, verbose=True):
                     match = False
                     report_added = {"err_name_mismatch": {
                         "stub": stub_out[1], "expected": j["output"]["err"]}}
-        # ---- post components byte-equal via the wire (value compare only)
+        # ---- post components byte-equal via the wire (value compare only);
+        # τ is threaded by the harness (disputes_stf returns only ψ, ρ).
         if match:
-            stub_psi, stub_rho, stub_tau = stub_out[2]
+            stub_psi, stub_rho = stub_out[2]
             want = b[post0:]
             encoded = encode_disputes_state(
-                stub_psi, stub_rho, stub_tau, pre_kappa, pre_lam)
+                stub_psi, stub_rho, pre_tau, pre_kappa, pre_lam)
             if encoded != want:
                 match = False
                 i = next((k for k in range(min(len(encoded), len(want)))
                           if encoded[k] != want[k]), None)
                 i = len(want) if i is None and len(encoded) != len(want) else i
                 report_added = {"post_state_mismatch": {
-                    "stub": _jsonify((stub_psi, stub_rho, stub_tau)),
+                    "stub": _jsonify((stub_psi, stub_rho)),
                     "expected_post": _jsonify((post_psi, post_rho, post_tau)),
                     "first_diff_octet": i,
                     "encoded_hex_head": encoded[:16].hex(),
@@ -323,7 +324,7 @@ def run_vector(path_no_ext, verbose=True):
                     else {"err": stub_out[1]}} if stub_out[0] != "exception"
             else None,
             expected_post=_jsonify((post_psi, post_rho, post_tau)),
-            stub_post=_jsonify(tuple(stub_out[2]) if len(stub_out) > 2 else None),
+            stub_post=_jsonify((stub_psi, stub_rho)) if isinstance(stub_out, tuple) and len(stub_out) > 2 else None,
             match=match, diff_notes=diff_notes, **report_added)
         return report
 

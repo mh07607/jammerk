@@ -35,32 +35,32 @@ def disputes_stf(disputes: Disputes,
     }
     for verdict in extrinsic_disputes.verdicts:
         if verdict.target <= target:
-            return "err", "verdicts_not_sorted_unique", (disputes, availability_assignments, most_recent_timeslot)
+            return "err", "verdicts_not_sorted_unique", (disputes, availability_assignments)
         if verdict.target in disputes.good or verdict.target in disputes.bad or verdict.target in disputes.wonky:
-            return "err", "already_judged", (disputes, availability_assignments, most_recent_timeslot)
+            return "err", "already_judged", (disputes, availability_assignments)
         target = verdict.target
         vote_index = -1
         positive_score = 0        
         for vote in verdict.votes:
             if vote.index <= vote_index:
-                return "err", "judgements_not_sorted_unique", (disputes, availability_assignments, most_recent_timeslot)            
+                return "err", "judgements_not_sorted_unique", (disputes, availability_assignments)            
             key = None
             if not 0 <= vote.index < util.NUM_VALIDATORS_IN_EPOCH_MARK:
-                return "err", "bad_validator_index", (disputes, availability_assignments, most_recent_timeslot)            
+                return "err", "bad_validator_index", (disputes, availability_assignments)            
             if verdict.age == most_recent_timeslot.timeslot // util.LENGTH_OF_EPOCH_IN_TIMESLOTS:                
                 key = current_validators.validators[vote.index].ed25519
             elif verdict.age == most_recent_timeslot.timeslot // util.LENGTH_OF_EPOCH_IN_TIMESLOTS - 1:
                 key = previous_validators.validators[vote.index].ed25519
             else:
-                return "err", "bad_judgement_age", (disputes, availability_assignments, most_recent_timeslot)
+                return "err", "bad_judgement_age", (disputes, availability_assignments)
             try:
                 out = VerifyKey(key=key).verify(smessage=(X_TRUE if vote.vote else X_FALSE) + verdict.target, signature=vote.signature)
             except:
-                return "err", "bad_signature", (disputes, availability_assignments, most_recent_timeslot)
+                return "err", "bad_signature", (disputes, availability_assignments)
             vote_index = vote.index
             positive_score += int(vote.vote)
         if positive_score not in list(reports_scores.keys()):
-            return "err", "bad_vote_split", (disputes, availability_assignments, most_recent_timeslot)
+            return "err", "bad_vote_split", (disputes, availability_assignments)
         if positive_score == GOOD_SCORE:
             found_fault = False
             for fault in extrinsic_disputes.faults:
@@ -68,7 +68,7 @@ def disputes_stf(disputes: Disputes,
                     found_fault = True
                     break;
             if found_fault == False:
-                return "err", "not_enough_faults", (disputes, availability_assignments, most_recent_timeslot)
+                return "err", "not_enough_faults", (disputes, availability_assignments)
         elif positive_score == BAD_SCORE:
             found_culprits = 0
             for culprit in extrinsic_disputes.culprits:
@@ -77,7 +77,7 @@ def disputes_stf(disputes: Disputes,
                     if found_culprits == 2:
                         break
             if found_culprits < 2:
-                return "err", "not_enough_culprits", (disputes, availability_assignments, most_recent_timeslot)
+                return "err", "not_enough_culprits", (disputes, availability_assignments)
         reports_scores[positive_score].append(verdict.target)
     previous_validators_ed25519 = [ validator.ed25519 for validator in previous_validators.validators ]
     current_validators_ed25519 = [ validator.ed25519 for validator in current_validators.validators ]
@@ -87,32 +87,32 @@ def disputes_stf(disputes: Disputes,
     key = int(0).to_bytes(util.HASH_LEN_IN_BYTES)
     for culprit in extrinsic_disputes.culprits:
         if culprit.key in disputes.offenders:
-            return "err", "offender_already_reported", (disputes, availability_assignments, most_recent_timeslot)
+            return "err", "offender_already_reported", (disputes, availability_assignments)
         if culprit.key not in previous_validators_ed25519 or culprit.key not in current_validators_ed25519:
-            return "err", "bad_guarantor_key", (disputes, availability_assignments, most_recent_timeslot)
+            return "err", "bad_guarantor_key", (disputes, availability_assignments)
         if culprit.key <= key:
-            return "err", "culprits_not_sorted_unique", (disputes, availability_assignments, most_recent_timeslot)
+            return "err", "culprits_not_sorted_unique", (disputes, availability_assignments)
         if culprit.target not in bad_post:
-            return "err", "culprits_verdict_not_bad", (disputes, availability_assignments, most_recent_timeslot)
+            return "err", "culprits_verdict_not_bad", (disputes, availability_assignments)
         try:
             out = VerifyKey(culprit.key).verify(smessage=X_GUARANTEE + culprit.target, signature=culprit.signature)
         except:
-            return "err", "bad_signature", (disputes, availability_assignments, most_recent_timeslot)
+            return "err", "bad_signature", (disputes, availability_assignments)
         key = culprit.key
     key = int(0).to_bytes(util.HASH_LEN_IN_BYTES)
     for fault in extrinsic_disputes.faults:
         if fault.key in disputes.offenders:
-            return "err", "offender_already_reported", (disputes, availability_assignments, most_recent_timeslot)
+            return "err", "offender_already_reported", (disputes, availability_assignments)
         if fault.key not in previous_validators_ed25519 or fault.key not in current_validators_ed25519:
-            return "err", "bad_auditor_key", (disputes, availability_assignments, most_recent_timeslot)
+            return "err", "bad_auditor_key", (disputes, availability_assignments)
         if fault.key <= key:
-            return "err", "faults_not_sorted_unique", (disputes, availability_assignments, most_recent_timeslot)
+            return "err", "faults_not_sorted_unique", (disputes, availability_assignments)
         if (fault.vote and fault.target not in bad_post) or (not fault.vote and fault.target not in good_post):
-            return "err", "fault_verdict_wrong", (disputes, availability_assignments, most_recent_timeslot)        
+            return "err", "fault_verdict_wrong", (disputes, availability_assignments)        
         try:
             out = VerifyKey(fault.key).verify(smessage=(X_TRUE if fault.vote else X_FALSE) + fault.target, signature=fault.signature)
         except:
-            return "err", "bad_signature", (disputes, availability_assignments, most_recent_timeslot)
+            return "err", "bad_signature", (disputes, availability_assignments)
         key = fault.key
 
     for i in range(util.NUM_VALIDATORS_IN_EPOCH_MARK // 3):
@@ -134,4 +134,4 @@ def disputes_stf(disputes: Disputes,
     disputes.offenders.extend(new_offenders)
     disputes.offenders.sort()
 
-    return "ok", new_offenders, (disputes, availability_assignments, most_recent_timeslot)
+    return "ok", new_offenders, (disputes, availability_assignments)

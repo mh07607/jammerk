@@ -233,9 +233,6 @@
      "timeout": 42
     }
    ]
-  },
-  {
-   "timeslot": 0
   }
  ],
  "match": true,
