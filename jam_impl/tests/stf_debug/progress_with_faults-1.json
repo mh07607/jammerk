@@ -41,7 +41,9 @@
   "err": "not_enough_faults"
  },
  "output": {
-  "ok": []
+  "ok": {
+   "err": "not_enough_faults"
+  }
  },
  "expected_post": [
   {
@@ -62,9 +64,7 @@
  ],
  "stub_post": [
   {
-   "good": [
-    "0x11da6d1f761ddf9bdb4c9d6e5303ebd41f61858d0a5647a1a7bfe089bf921be9"
-   ],
+   "good": [],
    "bad": [],
    "wonky": [],
    "offenders": []
@@ -79,13 +79,6 @@
    "timeslot": 0
   }
  ],
- "match": false,
- "diff_notes": [],
- "verdict_mismatch": {
-  "stub": "ok",
-  "stub_err": null,
-  "expected": {
-   "err": "not_enough_faults"
-  }
- }
+ "match": true,
+ "diff_notes": []
 }

@@ -54,10 +54,9 @@
   "err": "fault_verdict_wrong"
  },
  "output": {
-  "ok": [
-   "0x4418fb8c85bb3985394a8c2756d3643457ce614546202a2f50b093d762499ace",
-   "0xad93247bd01307550ec7acd757ce6fb805fcf73db364063265b30a949e90d933"
-  ]
+  "ok": {
+   "err": "fault_verdict_wrong"
+  }
  },
  "expected_post": [
   {
@@ -78,15 +77,10 @@
  ],
  "stub_post": [
   {
-   "good": [
-    "0x11da6d1f761ddf9bdb4c9d6e5303ebd41f61858d0a5647a1a7bfe089bf921be9"
-   ],
+   "good": [],
    "bad": [],
    "wonky": [],
-   "offenders": [
-    "0x4418fb8c85bb3985394a8c2756d3643457ce614546202a2f50b093d762499ace",
-    "0xad93247bd01307550ec7acd757ce6fb805fcf73db364063265b30a949e90d933"
-   ]
+   "offenders": []
   },
   {
    "assignments": [
@@ -98,13 +92,6 @@
    "timeslot": 0
   }
  ],
- "match": false,
- "diff_notes": [],
- "verdict_mismatch": {
-  "stub": "ok",
-  "stub_err": null,
-  "expected": {
-   "err": "fault_verdict_wrong"
-  }
- }
+ "match": true,
+ "diff_notes": []
 }

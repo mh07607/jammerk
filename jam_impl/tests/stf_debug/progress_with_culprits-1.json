@@ -41,7 +41,9 @@
   "err": "not_enough_culprits"
  },
  "output": {
-  "ok": []
+  "ok": {
+   "err": "not_enough_culprits"
+  }
  },
  "expected_post": [
   {
@@ -63,9 +65,7 @@
  "stub_post": [
   {
    "good": [],
-   "bad": [
-    "0x11da6d1f761ddf9bdb4c9d6e5303ebd41f61858d0a5647a1a7bfe089bf921be9"
-   ],
+   "bad": [],
    "wonky": [],
    "offenders": []
   },
@@ -79,13 +79,6 @@
    "timeslot": 0
   }
  ],
- "match": false,
- "diff_notes": [],
- "verdict_mismatch": {
-  "stub": "ok",
-  "stub_err": null,
-  "expected": {
-   "err": "not_enough_culprits"
-  }
- }
+ "match": true,
+ "diff_notes": []
 }

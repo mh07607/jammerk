@@ -61,9 +61,29 @@ def disputes_stf(disputes: Disputes,
             positive_score += int(vote.vote)
         if positive_score not in list(reports_scores.keys()):
             return "err", "bad_vote_split", (disputes, availability_assignments, most_recent_timeslot)
+        if positive_score == GOOD_SCORE:
+            found_fault = False
+            for fault in extrinsic_disputes.faults:
+                if fault.target == verdict.target:
+                    found_fault = True
+                    break;
+            if found_fault == False:
+                return "err", "not_enough_faults", (disputes, availability_assignments, most_recent_timeslot)
+        elif positive_score == BAD_SCORE:
+            found_culprits = 0
+            for culprit in extrinsic_disputes.culprits:
+                if culprit.target == verdict.target:
+                    found_culprits += 1
+                    if found_culprits == 2:
+                        break
+            if found_culprits < 2:
+                return "err", "not_enough_culprits", (disputes, availability_assignments, most_recent_timeslot)
         reports_scores[positive_score].append(verdict.target)
     previous_validators_ed25519 = [ validator.ed25519 for validator in previous_validators.validators ]
     current_validators_ed25519 = [ validator.ed25519 for validator in current_validators.validators ]
+    good_post = set(disputes.good)   | set(reports_scores[GOOD_SCORE])
+    bad_post  = set(disputes.bad)    | set(reports_scores[BAD_SCORE])
+    # wonky_post = set(disputes.wonky) | set(reports_scores[WONKY_SCORE])
     key = int(0).to_bytes(util.HASH_LEN_IN_BYTES)
     for culprit in extrinsic_disputes.culprits:
         if culprit.key in disputes.offenders:
@@ -71,7 +91,9 @@ def disputes_stf(disputes: Disputes,
         if culprit.key not in previous_validators_ed25519 or culprit.key not in current_validators_ed25519:
             return "err", "bad_guarantor_key", (disputes, availability_assignments, most_recent_timeslot)
         if culprit.key <= key:
-            return "err", "culprits_not_sorted_unique", (disputes, availability_assignments, most_recent_timeslot)        
+            return "err", "culprits_not_sorted_unique", (disputes, availability_assignments, most_recent_timeslot)
+        if culprit.target not in bad_post:
+            return "err", "culprits_verdict_not_bad", (disputes, availability_assignments, most_recent_timeslot)
         try:
             out = VerifyKey(culprit.key).verify(smessage=X_GUARANTEE + culprit.target, signature=culprit.signature)
         except:
@@ -85,11 +107,20 @@ def disputes_stf(disputes: Disputes,
             return "err", "bad_auditor_key", (disputes, availability_assignments, most_recent_timeslot)
         if fault.key <= key:
             return "err", "faults_not_sorted_unique", (disputes, availability_assignments, most_recent_timeslot)
+        if (fault.vote and fault.target not in bad_post) or (not fault.vote and fault.target not in good_post):
+            return "err", "fault_verdict_wrong", (disputes, availability_assignments, most_recent_timeslot)        
         try:
             out = VerifyKey(fault.key).verify(smessage=(X_TRUE if fault.vote else X_FALSE) + fault.target, signature=fault.signature)
         except:
             return "err", "bad_signature", (disputes, availability_assignments, most_recent_timeslot)
         key = fault.key
+
+    for i in range(util.NUM_VALIDATORS_IN_EPOCH_MARK // 3):
+        if availability_assignments.assignments[i] is not None:
+            report_hash = util.hash_via_blake2b(availability_assignments.assignments[i].report.encode())
+            if report_hash in reports_scores[BAD_SCORE] or report_hash in reports_scores[WONKY_SCORE]:
+                availability_assignments.assignments[i] = None
+            
     disputes.good.extend(reports_scores[GOOD_SCORE])
     disputes.good.sort()
     disputes.bad.extend(reports_scores[BAD_SCORE])
