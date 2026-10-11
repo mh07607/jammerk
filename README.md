@@ -12,3 +12,7 @@ The more milestones your team completes, the more competitive your submission wi
 # Disclaimers
 1. trie.py inspired from merkle.py
 2. using jamdot's bandersnatch vrf.
+
+# TODO
+1. Some errors in Safrole remain unhandled
+2. Move spec_globals out of header_codec

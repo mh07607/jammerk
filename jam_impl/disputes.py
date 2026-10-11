@@ -9,7 +9,7 @@ from jam_impl.models.State import (
 from jam_impl.models.Extrinsic import Disputes as ExtrinsicDisputes
 import jam_impl.util as util
 from nacl.signing import VerifyKey
-from nacl.exceptions import BadSignatureError
+# from nacl.exceptions import BadSignatureError
 
 X_TRUE = b'jam_valid'
 X_FALSE = b'jam_invalid'
