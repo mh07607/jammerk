@@ -1,0 +1,161 @@
+{
+ "vector": "/home/arsalan/repos/JAM_implementation/jamtestvectors/stf/reports/tiny/reports_with_dependencies-3",
+ "input": {
+  "guarantees": [
+   {
+    "report": {
+     "package_spec": {
+      "hash": "0x63c03371b9dad9f1c60473ec0326c970984e9c90c0b5ed90eba6ada471ba4d86",
+      "length": 17180,
+      "erasure_root": "0x9fc7e637969aef1a95dfb560a914cf5161a76498db3aa19df131cea199ed6e44",
+      "exports_root": "0x5c9dca800c145685f052ce1ba343e2b66b4c333ee4c4ca3b29cb347b1009cb83",
+      "exports_count": 3
+     },
+     "context": {
+      "anchor": "0x39cb518983b02695034b3b92cb31a7334e1a2ec3ef7dbfa32c68e4e8444363f1",
+      "state_root": "0xd8c577816b629241676502d0461e4eae42a375461314d64484f35f4228da23d6",
+      "beefy_root": "0xf5df0c11416d43c55b43e096572d450b7780ed0fd7b540f26c8ded8e0d41e183",
+      "lookup_anchor": "0x16bda47e5a68daf53c39ddee8af4ecaced7e87f3f0ac9da5a6f4f9e41350d319",
+      "lookup_anchor_slot": 8,
+      "prerequisites": [
+       "0xc7e675b7e3450cf70d436172644faef291c2aa905b1fe81c068785cd6e1e44e5"
+      ]
+     },
+     "core_index": 0,
+     "authorizer_hash": "0x9a3a97d1950356ef6d3c20acb5ab6699be454b1498ecd513bdc6d849497e42eb",
+     "auth_gas_used": 0,
+     "auth_output": "0x",
+     "segment_root_lookup": [],
+     "results": [
+      {
+       "service_id": 42,
+       "code_hash": "0x6470fd21983eae8d706f1edd5e2dc5afe095980f8fb7bd4ebfd33550d8730246",
+       "payload_hash": "0x3cf2d09da453bbdd6b68d8a1acd5f15ba23ba46d4ff087592b3d319432500a50",
+       "accumulate_gas": 18012,
+       "result": "OK",
+       "result_payload": {
+        "ok": "0x64756d6d792d726573756c74"
+       },
+       "refine_load": {
+        "gas_used": 821,
+        "imports": 8,
+        "extrinsic_count": 8,
+        "extrinsic_size": 1526,
+        "exports": 17
+       }
+      }
+     ]
+    },
+    "slot": 16,
+    "signatures": [
+     {
+      "validator_index": 0,
+      "signature": "0xf7edc5ab698bbac6315e0e6676de2f400d1e010e821f7e1528266c5afd461b695b2de8a70c28ea5dc2ad536398ae764e6853f4b59db85a43069206226282ad00"
+     },
+     {
+      "validator_index": 2,
+      "signature": "0x0d143c3fba78aa7213bca8c353c4f00ef8cdfee454fea9ee8b9d03e548f23b74b47a75790e49bf72b62456a21d2696cb0586d31897e1ce41c44c4ce116f9a603"
+     },
+     {
+      "validator_index": 3,
+      "signature": "0x6c4ade24c998bb0d6f7b15f13ef4365fe372957ec8698c4ffb916ac6acf10d6e2924a4dcd81ff34bdb89fdeb651256e89370995865b30f912e4dde84d204110a"
+     }
+    ]
+   },
+   {
+    "report": {
+     "package_spec": {
+      "hash": "0xc7e675b7e3450cf70d436172644faef291c2aa905b1fe81c068785cd6e1e44e5",
+      "length": 12487,
+      "erasure_root": "0x9fc7e637969aef1a95dfb560a914cf5161a76498db3aa19df131cea199ed6e44",
+      "exports_root": "0x5c9dca800c145685f052ce1ba343e2b66b4c333ee4c4ca3b29cb347b1009cb83",
+      "exports_count": 3
+     },
+     "context": {
+      "anchor": "0x39cb518983b02695034b3b92cb31a7334e1a2ec3ef7dbfa32c68e4e8444363f1",
+      "state_root": "0xd8c577816b629241676502d0461e4eae42a375461314d64484f35f4228da23d6",
+      "beefy_root": "0xf5df0c11416d43c55b43e096572d450b7780ed0fd7b540f26c8ded8e0d41e183",
+      "lookup_anchor": "0x16bda47e5a68daf53c39ddee8af4ecaced7e87f3f0ac9da5a6f4f9e41350d319",
+      "lookup_anchor_slot": 8,
+      "prerequisites": [
+       "0x63c03371b9dad9f1c60473ec0326c970984e9c90c0b5ed90eba6ada471ba4d86",
+       "0xc7e675b7e3450cf70d436172644faef291c2aa905b1fe81c068785cd6e1e44e5"
+      ]
+     },
+     "core_index": 1,
+     "authorizer_hash": "0x9a3a97d1950356ef6d3c20acb5ab6699be454b1498ecd513bdc6d849497e42eb",
+     "auth_gas_used": 0,
+     "auth_output": "0x",
+     "segment_root_lookup": [],
+     "results": [
+      {
+       "service_id": 42,
+       "code_hash": "0x6470fd21983eae8d706f1edd5e2dc5afe095980f8fb7bd4ebfd33550d8730246",
+       "payload_hash": "0x3cf2d09da453bbdd6b68d8a1acd5f15ba23ba46d4ff087592b3d319432500a50",
+       "accumulate_gas": 14238,
+       "result": "OK",
+       "result_payload": {
+        "ok": "0x64756d6d792d726573756c74"
+       },
+       "refine_load": {
+        "gas_used": 697,
+        "imports": 1,
+        "extrinsic_count": 3,
+        "extrinsic_size": 1926,
+        "exports": 18
+       }
+      }
+     ]
+    },
+    "slot": 16,
+    "signatures": [
+     {
+      "validator_index": 1,
+      "signature": "0x27deff2c34bfcc0fcbc51abb2c6abee9793ddd768fd51062978f9f7125e805781cd183805a0b83eec70ffabb6d0215382d5d39f554ae10522fac48eccb0fb202"
+     },
+     {
+      "validator_index": 4,
+      "signature": "0x2a908a5d1c695e48f523a4fa1d932fa31e39814da84c5de8773765b9063271e2cae731b1bda8c3a0bdcf9a3b1c2c56a6774d8054b76a3f140990225c654b7401"
+     },
+     {
+      "validator_index": 5,
+      "signature": "0x641e995381bc017b83a64dffd5bdf43a932b0a0567599df2cec62f31cf22e13c2a0d57586c226d6b912e46916185e3fd0d4cc0df30b634323fed50ffd9cd1f07"
+     }
+    ]
+   }
+  ],
+  "slot": 16,
+  "known_packages": [
+   "0x22f6c9658e97a10aab5054000140a3355aa61c2a42d9de904ef9e8533ce4a0f2",
+   "0x303026af983b91393c6b31e972263759f72c5e7656c00b267e9b61292252c125",
+   "0x35e10c83c8f715877779620be0129741216e77273aafee9d791c874b742015ad"
+  ]
+ },
+ "expected_output": {
+  "ok": {
+   "reported": [
+    {
+     "work_package_hash": "0x63c03371b9dad9f1c60473ec0326c970984e9c90c0b5ed90eba6ada471ba4d86",
+     "segment_tree_root": "0x5c9dca800c145685f052ce1ba343e2b66b4c333ee4c4ca3b29cb347b1009cb83"
+    },
+    {
+     "work_package_hash": "0xc7e675b7e3450cf70d436172644faef291c2aa905b1fe81c068785cd6e1e44e5",
+     "segment_tree_root": "0x5c9dca800c145685f052ce1ba343e2b66b4c333ee4c4ca3b29cb347b1009cb83"
+    }
+   ],
+   "reporters": [
+    "0x4418fb8c85bb3985394a8c2756d3643457ce614546202a2f50b093d762499ace",
+    "0x8b8c5d436f92ecf605421e873a99ec528761eb52a88a2f9a057b3b3003e6f32a",
+    "0xab0084d01534b31c1dd87c81645fd762482a90027754041ca1b56133d0466c06",
+    "0xad93247bd01307550ec7acd757ce6fb805fcf73db364063265b30a949e90d933",
+    "0xcab2b9ff25c2410fbe9b8a717abb298c716a03983c98ceb4def2087500b8e341",
+    "0xf30aa5444688b3cab47697b37d5cac5707bb3289e986b19b17db437206931a8d"
+   ]
+  }
+ },
+ "failure": {
+  "kind": "stub-exception",
+  "exception": "TypeError: 'CurrentValidators' object is not subscriptable",
+  "traceback": "Traceback (most recent call last):\n  File \"/home/arsalan/repos/JAM_implementation/jam_impl/tests/reports_stf_harness.py\", line 412, in run_vector\n    stub_out = stub(\n        **stub_args,\n    ...<2 lines>...\n        known_packages=copy.deepcopy(known_packages),\n        spec=spec)\n  File \"/home/arsalan/repos/JAM_implementation/jam_impl/reports.py\", line 89, in reports_stf\n    key = current_validators[signature.validator_index]\n          ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^\nTypeError: 'CurrentValidators' object is not subscriptable\n"
+ }
+}

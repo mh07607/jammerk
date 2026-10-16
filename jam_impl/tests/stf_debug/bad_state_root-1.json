@@ -1,0 +1,79 @@
+{
+ "vector": "/home/arsalan/repos/JAM_implementation/jamtestvectors/stf/reports/tiny/bad_state_root-1",
+ "input": {
+  "guarantees": [
+   {
+    "report": {
+     "package_spec": {
+      "hash": "0x63c03371b9dad9f1c60473ec0326c970984e9c90c0b5ed90eba6ada471ba4d86",
+      "length": 17180,
+      "erasure_root": "0x9fc7e637969aef1a95dfb560a914cf5161a76498db3aa19df131cea199ed6e44",
+      "exports_root": "0x5c9dca800c145685f052ce1ba343e2b66b4c333ee4c4ca3b29cb347b1009cb83",
+      "exports_count": 3
+     },
+     "context": {
+      "anchor": "0x39cb518983b02695034b3b92cb31a7334e1a2ec3ef7dbfa32c68e4e8444363f1",
+      "state_root": "0x1248fd314e6ca467f0305f3494a66c75c37aa084512c6066ee211d49bb1f39bc",
+      "beefy_root": "0xf5df0c11416d43c55b43e096572d450b7780ed0fd7b540f26c8ded8e0d41e183",
+      "lookup_anchor": "0x16bda47e5a68daf53c39ddee8af4ecaced7e87f3f0ac9da5a6f4f9e41350d319",
+      "lookup_anchor_slot": 6,
+      "prerequisites": []
+     },
+     "core_index": 0,
+     "authorizer_hash": "0x9a3a97d1950356ef6d3c20acb5ab6699be454b1498ecd513bdc6d849497e42eb",
+     "auth_gas_used": 0,
+     "auth_output": "0x",
+     "segment_root_lookup": [],
+     "results": [
+      {
+       "service_id": 42,
+       "code_hash": "0x6470fd21983eae8d706f1edd5e2dc5afe095980f8fb7bd4ebfd33550d8730246",
+       "payload_hash": "0x3cf2d09da453bbdd6b68d8a1acd5f15ba23ba46d4ff087592b3d319432500a50",
+       "accumulate_gas": 18012,
+       "result": "OK",
+       "result_payload": {
+        "ok": "0x64756d6d792d726573756c74"
+       },
+       "refine_load": {
+        "gas_used": 821,
+        "imports": 8,
+        "extrinsic_count": 8,
+        "extrinsic_size": 1526,
+        "exports": 17
+       }
+      }
+     ]
+    },
+    "slot": 14,
+    "signatures": [
+     {
+      "validator_index": 1,
+      "signature": "0xddf2139f3e1be4740b78ed84b0de84c2fe373491a5f2831995631d7241fed54473961ecc4503180ca789bcd9e3b3c97f3435ee21254a180a18d16fd72c856506"
+     },
+     {
+      "validator_index": 4,
+      "signature": "0xa24e326a7c5b2715078aa6cbe415b206599e98da821ca91670b585620d409ce9e0386553bca1734a485e4db3be5f7586150d1f661436c01da1ec6590c199660a"
+     },
+     {
+      "validator_index": 5,
+      "signature": "0x5b4a322afbf35a5084356126bb3d3d800b1c4fa38885fd3d7a9aeb3952aec6afa216964eaa2987f567f678065d3bcfc4d399e94b58ef6c372925c44da8aa950b"
+     }
+    ]
+   }
+  ],
+  "slot": 14,
+  "known_packages": [
+   "0x22f6c9658e97a10aab5054000140a3355aa61c2a42d9de904ef9e8533ce4a0f2",
+   "0x303026af983b91393c6b31e972263759f72c5e7656c00b267e9b61292252c125",
+   "0x35e10c83c8f715877779620be0129741216e77273aafee9d791c874b742015ad"
+  ]
+ },
+ "expected_output": {
+  "err": "bad_state_root"
+ },
+ "failure": {
+  "kind": "stub-exception",
+  "exception": "TypeError: 'CurrentValidators' object is not subscriptable",
+  "traceback": "Traceback (most recent call last):\n  File \"/home/arsalan/repos/JAM_implementation/jam_impl/tests/reports_stf_harness.py\", line 412, in run_vector\n    stub_out = stub(\n        **stub_args,\n    ...<2 lines>...\n        known_packages=copy.deepcopy(known_packages),\n        spec=spec)\n  File \"/home/arsalan/repos/JAM_implementation/jam_impl/reports.py\", line 89, in reports_stf\n    key = current_validators[signature.validator_index]\n          ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^\nTypeError: 'CurrentValidators' object is not subscriptable\n"
+ }
+}

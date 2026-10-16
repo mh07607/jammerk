@@ -549,6 +549,78 @@ def encode_service_definition(definition: ServiceDefinition) -> bytes:
     )
 
 
+# ---------------------------------------------------------------------------
+# Reports-stf statistics slice (π_C and π_S as they appear on the reports
+# stf wire — no whole-C(13) registrar prefix). π_C: CORE_COUNT bare compact
+# records; π_S: ↕-prefixed (id, record) pairs keyed by service id, id-ascending.
+# Same record layouts as decode_registrar_state / encode_registrar_state.
+# ---------------------------------------------------------------------------
+
+def decode_reports_statistics(d: Decoder) -> tuple[list[CoreStatistics],
+                                                   dict[int, ServiceStatistics]]:
+    """Cursor positioned at the reports-stf π_C/π_S slice →
+    (cores_stats, services_stats) using the repo state classes."""
+    cores_stats = [
+        CoreStatistics(
+            da_load=d.decode_compact(),
+            popularity=d.decode_compact(),
+            imports=d.decode_compact(),
+            extrinsic_count=d.decode_compact(),
+            extrinsic_size=d.decode_compact(),
+            exports=d.decode_compact(),
+            bundle_size=d.decode_compact(),
+            gas_used=d.decode_compact(),
+        )
+        for _ in range(core_count())
+    ]
+    services_stats = {}
+    for _ in range(d.decode_compact()):
+        service_id = d.u32()
+        services_stats[service_id] = ServiceStatistics(
+            provided_count=d.decode_compact(),
+            provided_size=d.decode_compact(),
+            refinement_count=d.decode_compact(),
+            refinement_gas_used=d.decode_compact(),
+            imports=d.decode_compact(),
+            extrinsic_count=d.decode_compact(),
+            extrinsic_size=d.decode_compact(),
+            exports=d.decode_compact(),
+            accumulate_count=d.decode_compact(),
+            accumulate_gas_used=d.decode_compact(),
+        )
+    return cores_stats, services_stats
+
+
+def encode_reports_statistics(e: Encoder, cores_stats: list[CoreStatistics],
+                             services_stats: dict[int, ServiceStatistics]) -> None:
+    """Inverse of decode_reports_statistics, appended onto an existing Encoder."""
+    assert len(cores_stats) == core_count(), \
+        f"π_C must hold exactly {core_count()} core records"
+    for stats in cores_stats:
+        e.compact(stats.da_load)
+        e.compact(stats.popularity)
+        e.compact(stats.imports)
+        e.compact(stats.extrinsic_count)
+        e.compact(stats.extrinsic_size)
+        e.compact(stats.exports)
+        e.compact(stats.bundle_size)
+        e.compact(stats.gas_used)
+    e.compact(len(services_stats))
+    for service_id in sorted(services_stats):  # dictionaries key-sorted (GP C.10)
+        stats = services_stats[service_id]
+        e.u32(service_id)
+        e.compact(stats.provided_count)
+        e.compact(stats.provided_size)
+        e.compact(stats.refinement_count)
+        e.compact(stats.refinement_gas_used)
+        e.compact(stats.imports)
+        e.compact(stats.extrinsic_count)
+        e.compact(stats.extrinsic_size)
+        e.compact(stats.exports)
+        e.compact(stats.accumulate_count)
+        e.compact(stats.accumulate_gas_used)
+
+
 def decode_form_three_component(b: bytes):
     # TODO: will have to look at this after trie
     return None

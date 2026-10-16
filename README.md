@@ -16,3 +16,4 @@ The more milestones your team completes, the more competitive your submission wi
 # TODO
 1. Some errors in Safrole remain unhandled
 2. Move spec_globals out of header_codec
+3. Move core_count() into util
