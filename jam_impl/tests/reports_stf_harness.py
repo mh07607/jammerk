@@ -9,7 +9,9 @@ against the JSON sidecars + GP shuffle vectors):
 
   stf/reports/<spec>/<name>.bin = INPUT ‖ PRE_STATE ‖ OUTPUT ‖ POST_STATE
     input   = ↕guarantees (repo extrinsic codec: report C.29 + slot E4 ↕creds)
-              ‖ slot(E4) ‖ ↕known_packages (n × 32)
+              ‖ slot(E4) ‖ ↕known_packages (n × 32; walked, then DISCARDED —
+              the stub derives the GP 11.38 known-set internally from
+              β/ρ/ω/ξ; see the ω/ξ mock note in decode_reports_state)
     state   = ρ (¿×C: 00 | 01 report timeout-E4)
               ‖ κ (V×336) ‖ λ (V×336) ‖ η (4×32)
               ‖ offenders (↕ + n×32)
@@ -35,11 +37,13 @@ models in place, exactly like assurances_stf / disputes_stf:
         current_validators,           # κ
         previous_validators,          # λ (prev-rotation basis)
         entropy,                      # η (shuffle basis)
-        disputes,                     # ψ (offenders filter for credentials)
+        disputes,                     # ψ C(5): only ψ_O on this wire; wrapped in a
+                                      # Disputes(good/bad/wonky=[]) so disputes.offenders works
         accounts,                     # δ: read-only (code hash, min_item_gas)
+        accumulation_queue,           # ω C(14): honest EMPTY mock (see below)
+        accumulation_history,         # ξ C(15): honest EMPTY mock (see below)
         guarantees,                   # X_G, decoded input leg
         current_slot,                 # τ' (input leg)
-        known_packages,               # input leg (see notes; hand through)
         spec,
     )
       → ("ok", reported: list[(work_package_hash, exports_root)],   # 32‖32
@@ -57,11 +61,19 @@ models in place, exactly like assurances_stf / disputes_stf:
   β (recent history) is READ-ONLY on the reports leg: verified against the
   JSON sidecars, recent_blocks is pre==post identical on every ok vector; the
   (reported, reporters) output leg is what the outer block layer folds back
-  into β's next entry. known_packages equals sorted(K(β_H[*].reported)) +
-  the package hashes of any reports seated in ρ (the two pre-seated vectors
-  carry those extras) — pass it through as decoded rather than re-deriving.
-  The ancestor-record check (GP 0.7.2 eq 11.35) needs the ancestor header
-  series A, which is not on this wire; it is checked upstream of this STF.
+  into β's next entry. The ancestor-record check (GP 0.7.2 eq 11.35) needs
+  the ancestor header series A, which is not on this wire; upstream-only.
+
+  ω/ξ mocks (replacing the former known_packages hand-through, user's call):
+  the vector host shipped the GP-11.38 union pre-computed as ↕known_packages
+  on the INPUT leg, but the stub now derives that union itself from
+  β ∪ ξ ∪ q(ω) ∪ a(ρ). Since ξ/ω are never on this wire, the harness hands
+  honest EMPTY C(14)/C(15) mocks (epoch-length empty queues / hash-sets) and
+  walks-and-discards the input's known_packages. Honesty check: on all 84
+  vectors the wire's known_packages == β-reported ∪ ρ-occupants exactly, so
+  the empty mocks contribute ∅ and the union derivation reproduces the same
+  set the host would have sent. In full-chain integration the real C(14)/C(15)
+  state replaces the mocks with no stub change.
 
 Verification performed by this harness per vector:
   1. run the stub on the decoded pre-components,
@@ -94,8 +106,10 @@ from jam_impl.codec.state_codec import (
     decode_authorization_pool, encode_authorization_pool,
     decode_service_definition, encode_service_definition,
     decode_reports_statistics, encode_reports_statistics,
+    decode_accumulation_queue, decode_accumulation_history,
 )
-from jam_impl.util import Decoder, Encoder
+from jam_impl.models.State import AccumulationQueue, AccumulationHistory, Disputes
+from jam_impl.util import Decoder, Encoder, StrictSet
 
 ERRS = [  # reports.asn ErrorCode order; json sidecars use the snake_case names
     "bad_core_index",                  # 0
@@ -172,11 +186,15 @@ def _v_len() -> int:
 
 def decode_reports_input(d: Decoder):
     """stf input: ↕guarantees ‖ slot(E4) ‖ ↕known_packages →
-    (guarantees, slot, known_packages)."""
+    (guarantees, slot). The known_packages component is NOT returned: it is
+    replaced by honest C(14)/C(15) mock state (below) and the stub derives
+    the known-set internally as the GP 11.38 union. (Wire-walked and
+    discarded — verified equal to β-reported ∪ ρ-occupants on all 84 vecs.)"""
     guarantees = decode_guarantees(d)
     slot = d.u32()
-    known = [d.hash32() for _ in range(d.decode_compact())]
-    return guarantees, slot, known
+    for _ in range(d.decode_compact()):     # ↕known_packages — walk, discard
+        d.hash32()
+    return guarantees, slot
 
 
 def encode_reports_input(guarantees, slot, known) -> bytes:
@@ -245,17 +263,31 @@ def decode_reports_state(d: Decoder):
     cores, services = decode_reports_statistics(d)
 
     b = d.b
+
+    # C(14)/C(15) were never on the reports-stf wire; the vector host instead
+    # shipped the pre-computed GP-11.38 union (↕known_packages on the INPUT
+    # leg) which the user's stub now derives itself. Honest mocks: empty
+    # queues of epoch length (verified: β-reported ∪ ρ-occupants == the whole
+    # known_packages set on all 84 vectors, so ω/ξ contribute ∅ here).
+    import jam_impl.util as util
+    E = util.LENGTH_OF_EPOCH_IN_TIMESLOTS
+    accumulation_queue = AccumulationQueue(queue=[[] for _ in range(E)])
+    accumulation_history = AccumulationHistory(
+        history=[StrictSet() for _ in range(E)])
+
     return {
         "availability_assignments": decode_availability_assignments(b[rho0:rho1]),
         "current_validators":       decode_current_validators(b[kap0:kap1]),
         "previous_validators":      decode_previous_validators(b[lam0:lam1]),
         "entropy":                  decode_entropy_accumulator(b[eta0:eta1]),
-        "disputes":                 offenders,
+        "disputes":                 Disputes(good=[], bad=[], wonky=[], offenders=offenders),
         "recent_history":           decode_recent_history(b[rb0:rb1]),
         "authorization_pools":      decode_authorization_pool(b[ap0:ap1]),
         "accounts":                 accounts,
         "core_statistics_post":     cores,
         "service_statistics_post":  services,
+        "accumulation_queue":       accumulation_queue,
+        "accumulation_history":     accumulation_history,
     }, d.o
 
 
@@ -266,8 +298,8 @@ def encode_reports_state(components: dict) -> bytes:
     e.raw(encode_current_validators(components["current_validators"]))
     e.raw(encode_previous_validators(components["previous_validators"]))
     e.raw(encode_entropy_accumulator(components["entropy"]))
-    e.compact(len(components["disputes"]))
-    for k in components["disputes"]:
+    e.compact(len(components["disputes"].offenders))
+    for k in components["disputes"].offenders:
         e.hash32(k)
     e.raw(encode_recent_history(components["recent_history"]))
     e.raw(encode_authorization_pool(components["authorization_pools"]))
@@ -365,12 +397,13 @@ def _norm(x):
 # ---------------------------------------------------------------------------
 
 # The components handed to reports_stf (the wire-decoded pre-state, minus the
-# state models this stf does not consume: α auth pools ride the wire for
-# layout-symmetry only) — mirrors the stub signature in jam_impl/reports.py.
+# state models this stf does not consume; ω/ξ are honest empty mocks — never
+# on this wire) — mirrors the stub signature in jam_impl/reports.py.
 STUB_COMPONENTS = (
     "availability_assignments", "core_statistics_post", "service_statistics_post",
-    "recent_history", "current_validators", "previous_validators",
-    "entropy", "disputes", "accounts",
+    "recent_history", "authorization_pools", "current_validators",
+    "previous_validators", "entropy", "disputes", "accounts",
+    "accumulation_queue", "accumulation_history",
 )
 
 
@@ -381,7 +414,7 @@ def run_vector(path_no_ext, verbose=True):
         j = json.load(open(path_no_ext + ".json"))
 
         d = Decoder(b)
-        guarantees, slot, known_packages = decode_reports_input(d)
+        guarantees, slot = decode_reports_input(d)
         input_end = d.o
         pre, pre_off = decode_reports_state(d)
         assert d.o <= len(b), "pre-state walk overran"
@@ -413,7 +446,6 @@ def run_vector(path_no_ext, verbose=True):
                 **stub_args,
                 guarantees=copy.deepcopy(guarantees),
                 current_slot=slot,
-                known_packages=copy.deepcopy(known_packages),
                 spec=spec)
         except NotImplementedError:
             return {"name": os.path.basename(path_no_ext),
@@ -429,8 +461,7 @@ def run_vector(path_no_ext, verbose=True):
                     "expected_output": j["output"],
                     "debug_json": _dump_debug(
                         vector=path_no_ext,
-                        input={"guarantees": guarantees, "slot": slot,
-                               "known_packages": known_packages},
+                        input={"guarantees": guarantees, "slot": slot},
                         expected_output=j["output"],
                         failure={"kind": "stub-exception",
                                  "exception": f"{type(ex).__name__}: {ex}",
@@ -486,8 +517,7 @@ def run_vector(path_no_ext, verbose=True):
         }
         report["debug_json"] = _dump_debug(
             vector=path_no_ext,
-            input={"guarantees": guarantees, "slot": slot,
-                   "known_packages": known_packages},
+            input={"guarantees": guarantees, "slot": slot},
             expected_output=j["output"],
             output={"ok": {"reported": _jsonify(stub_out[1]),
                            "reporters": _jsonify(stub_out[2])}

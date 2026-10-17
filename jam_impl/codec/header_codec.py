@@ -27,6 +27,7 @@ TICKETS_PER_VALIDATOR = {"tiny": 3, "full": 2}
 MAX_TICKETS_PER_EXTRINSIC = {"tiny": 3, "full": 16}
 CONTEST_DURATION = {"tiny": 10, "full": 500}
 CORE_SIZE = {"tiny": 3, "full": 3}
+# ROTATION_PERIOD: {"tiny": 10, "full": 10}
 
 # jamtestvectors/codec/<spec>/<name>.{bin,json} — repo root is this file's
 # parent's parent's parent (jam_impl/codec/header_codec.py -> repo root).

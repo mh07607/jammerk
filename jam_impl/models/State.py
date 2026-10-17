@@ -104,7 +104,9 @@ class BlockInfo:  # jam-types.asn: BlockInfo (one β_H history record)
 @dataclass
 class ReadyRecord:  # jam-types.asn: ReadyRecord (ω entry): report + dependencies
     report: Report                  # work report ready for accumulation
-    dependencies: StrictSet         # ↕-prefixed work-package hashes; GP: a set
+    # ↕-prefixed sequence of work-package hashes (GP 12.3: the ω-entry's
+    # unfulfilled dependencies, a set); wire elements are hashes
+    dependencies: StrictSet[bytes]
 
 
 # ---------------------------------------------------------------------------
@@ -273,7 +275,7 @@ class AccumulationQueue:  # C(14): ω — ready records per slot (epoch-length)
 
 @dataclass
 class AccumulationHistory:  # C(15): ξ — accumulated work-package hashes per slot
-    history: list[StrictSet]  # fixed epoch-length slots, each ↕-prefixed; GP: sets
+    history: list[StrictSet[bytes]]  # fixed epoch-length slots; GP 12.1: ξ = per-slot sets of accumulated work-package hashes
 
     def key(self) -> bytes:  # C(15)
         return C15_KEY

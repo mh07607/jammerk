@@ -1,5 +1,5 @@
 import jam_impl.util as util
-from jam_impl.util import Decoder, Encoder, StrictSet
+from jam_impl.util import Decoder, Encoder, StrictSet, core_count
 from jam_impl.codec.header_codec import spec_globals
 from jam_impl.codec.extrinsic_codec import decode_report, encode_report
 from jam_impl.models.State import (
@@ -20,10 +20,6 @@ AUTHORIZATION_QUEUE_LENGTH = 80
 RECENT_HISTORY_LENGTH = 8
 TICKET_ENTRY_PER_VALIDATOR_COUNT = 2
 VALIDATORS_PER_CORE = 3
-
-
-def core_count() -> int:
-    return util.NUM_VALIDATORS_IN_EPOCH_MARK // VALIDATORS_PER_CORE
 
 
 # Shared sub-decoders

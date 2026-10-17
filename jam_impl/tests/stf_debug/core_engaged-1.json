@@ -119,19 +119,15 @@
     ]
    }
   ],
-  "slot": 14,
-  "known_packages": [
-   "0x22f6c9658e97a10aab5054000140a3355aa61c2a42d9de904ef9e8533ce4a0f2",
-   "0x303026af983b91393c6b31e972263759f72c5e7656c00b267e9b61292252c125",
-   "0x35e10c83c8f715877779620be0129741216e77273aafee9d791c874b742015ad",
-   "0x63c03371b9dad9f1c60473ec0326c970984e9c90c0b5ed90eba6ada471ba4d86"
-  ]
+  "slot": 14
  },
  "expected_output": {
   "err": "core_engaged"
  },
  "output": {
-  "ok": null
+  "ok": {
+   "err": "core_engaged"
+  }
  },
  "expected_post": {
   "availability_assignments": {
@@ -271,7 +267,12 @@
     "0x8c039ff7caa17ccebfcadc44bd9fce6a4b6699c4d03de2e3349aa1dc11193cd7"
    ]
   },
-  "disputes": [],
+  "disputes": {
+   "good": [],
+   "bad": [],
+   "wonky": [],
+   "offenders": []
+  },
   "recent_history": {
    "history": [
     {
@@ -357,7 +358,7 @@
    ]
   },
   "accounts": [
-   "<jam_impl.tests.reports_stf_harness.ServiceRecord object at 0x71578c4379b0>"
+   "<__main__.ServiceRecord object at 0x73a560b069f0>"
   ],
   "core_statistics_post": [
    {
@@ -381,7 +382,39 @@
     "gas_used": 0
    }
   ],
-  "service_statistics_post": {}
+  "service_statistics_post": {},
+  "accumulation_queue": {
+   "queue": [
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    []
+   ]
+  },
+  "accumulation_history": {
+   "history": [
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    []
+   ]
+  }
  },
  "stub_post": {
   "availability_assignments": {
@@ -529,6 +562,17 @@
     "0xd7cc7a7751048dbe8d0232b5d0273acd874e56c19e41a2e09b590ca00e59908d"
    ]
   },
+  "authorization_pools": {
+   "pools": [
+    [
+     "0x9a3a97d1950356ef6d3c20acb5ab6699be454b1498ecd513bdc6d849497e42eb",
+     "0x66ae71c0cc186692ff500c6d4b7dbe88059cd3fe506fe5b908a4bc9bca009fd6"
+    ],
+    [
+     "0x9a3a97d1950356ef6d3c20acb5ab6699be454b1498ecd513bdc6d849497e42eb"
+    ]
+   ]
+  },
   "current_validators": {
    "validators": [
     {
@@ -617,10 +661,47 @@
     "0x8c039ff7caa17ccebfcadc44bd9fce6a4b6699c4d03de2e3349aa1dc11193cd7"
    ]
   },
-  "disputes": [],
+  "disputes": {
+   "good": [],
+   "bad": [],
+   "wonky": [],
+   "offenders": []
+  },
   "accounts": [
-   "<jam_impl.tests.reports_stf_harness.ServiceRecord object at 0x71578c4034d0>"
-  ]
+   "<__main__.ServiceRecord object at 0x73a560ac9a90>"
+  ],
+  "accumulation_queue": {
+   "queue": [
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    []
+   ]
+  },
+  "accumulation_history": {
+   "history": [
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    []
+   ]
+  }
  },
  "match": true
 }
