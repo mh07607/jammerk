@@ -93,7 +93,7 @@ def reports_stf(availability_assignments: AvailabilityAssignments,   # ρ (mutat
     accumulation_queue_package_hashes = [ ready_record.report.package_spec.hash for ready_record_slot in accumulation_queue.queue for ready_record in ready_record_slot  ]
     availability_assignments_package_hashes = [ assignment.report.package_spec.hash for assignment in availability_assignments.assignments if assignment is not None]    
     guarantee_core_index = -1
-    package_hashes = util.StrictSet()
+    package_hashes = util.StrictSet()        
     for guarantee in guarantees:
         if guarantee.report.core_index not in range(util.CORE_SIZE):
             return "err", "bad_core_index", [], []
@@ -130,7 +130,9 @@ def reports_stf(availability_assignments: AvailabilityAssignments,   # ρ (mutat
                 return "err", "not_sorted_or_unique_guarantors", [], []            
             if guarantor_assignments.permutation[signature.validator_index] != guarantee.report.core_index:
                 return "err", "wrong_assignment", [], []
-            key = guarantor_assignments.validators[signature.validator_index].ed25519            
+            key = guarantor_assignments.validators[signature.validator_index].ed25519               
+            if key == b'\0' * 32:
+                return "err", "banned_validator"
             e = util.Encoder()
             encode_report(e, guarantee.report)            
             try:
@@ -139,8 +141,8 @@ def reports_stf(availability_assignments: AvailabilityAssignments,   # ρ (mutat
                 return "err", "bad_signature", [], []
             validator_index = signature.validator_index
         # results_size = len(guarantee.report.auth_output) + sum([ len(result.result_payload.ok) for result in guarantee.report.results if result.result == WorkResult.OK ])                
-        results_size = len(guarantee.report.auth_output)
-        for result in guarantee.report.results:
+        results_size = len(guarantee.report.auth_output)                
+        for result in guarantee.report.results:            
             service_account = None
             for account in accounts:
                 if account.service_id == result.service_id:
@@ -150,7 +152,7 @@ def reports_stf(availability_assignments: AvailabilityAssignments,   # ρ (mutat
             if service_account.code_hash() != result.code_hash:
                 return "err", "bad_code_hash", [], []            
             if result.result == WorkResult.OK:
-                results_size += len(result.result_payload.ok)
+                results_size += len(result.result_payload.ok)                                       
         if results_size > MAX_RESULTS_SIZE:
             return "err", "work_report_too_big", [], []
         try:
@@ -168,11 +170,29 @@ def reports_stf(availability_assignments: AvailabilityAssignments,   # ρ (mutat
     reported = []
     reporters = []
     for guarantee in guarantees:
+        core_statistics_post[guarantee.report.core_index].bundle_size += guarantee.report.package_spec.length
+        for result in guarantee.report.results:
+            if result.service_id not in service_statistics_post:
+                service_statistics_post[result.service_id] = ServiceStatistics()
+            service_statistics_post[result.service_id].imports += result.refine_load.imports
+            service_statistics_post[result.service_id].exports += result.refine_load.exports
+            service_statistics_post[result.service_id].extrinsic_count += result.refine_load.extrinsic_count
+            service_statistics_post[result.service_id].extrinsic_size += result.refine_load.extrinsic_size
+            service_statistics_post[result.service_id].refinement_count += 1
+            service_statistics_post[result.service_id].refinement_gas_used += result.refine_load.gas_used
+            core_statistics_post[guarantee.report.core_index].imports += result.refine_load.imports
+            core_statistics_post[guarantee.report.core_index].exports += result.refine_load.exports
+            core_statistics_post[guarantee.report.core_index].gas_used += result.refine_load.gas_used
+            core_statistics_post[guarantee.report.core_index].extrinsic_count += result.refine_load.extrinsic_count
+            core_statistics_post[guarantee.report.core_index].extrinsic_size += result.refine_load.extrinsic_size 
+
+        # for result in guarantee.report.results:
+        #     service_statistics_post[result.service_id] 
+        #     result.service_id
         availability_assignments.assignments[guarantee_core_index] = AvailabilityAssignment(
             report=guarantee.report,
             timeout=current_slot
-        )
-        availability_assignments.assignments[guarantee_core_index].timeout = current_slot
+        )        
         # reported.append({
         #     "work_package_hash": guarantee.report.package_spec.hash,
         #     "segment_tree_root": guarantee.report.package_spec.exports_root
@@ -187,7 +207,7 @@ def reports_stf(availability_assignments: AvailabilityAssignments,   # ρ (mutat
         for signature in guarantee.signatures:            
             reporters.append(guarantor_assignments.validators[signature.validator_index].ed25519)
     reporters.sort()
-    reported.sort(key=lambda x: x[0])
+    reported.sort(key=lambda x: x[0])        
     # reported.sort(key=lambda x: x["work_package_hash"])
     # 11.25 credentials must be ordered by their validator index.
     # 11.24 guarantees must be ordered by (unique) core index.

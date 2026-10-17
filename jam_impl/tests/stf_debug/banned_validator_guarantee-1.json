@@ -125,9 +125,7 @@
   "err": "banned_validator"
  },
  "output": {
-  "ok": {
-   "err": "bad_signature"
-  }
+  "ok": null
  },
  "expected_post": {
   "availability_assignments": {
@@ -317,7 +315,7 @@
    ]
   },
   "accounts": [
-   "<__main__.ServiceRecord object at 0x73a560b042f0>"
+   "<__main__.ServiceRecord object at 0x77ee86e19250>"
   ],
   "core_statistics_post": [
    {
@@ -586,7 +584,7 @@
    ]
   },
   "accounts": [
-   "<__main__.ServiceRecord object at 0x73a560ac8b90>"
+   "<__main__.ServiceRecord object at 0x77ee86e19a30>"
   ],
   "accumulation_queue": {
    "queue": [
@@ -621,9 +619,5 @@
    ]
   }
  },
- "match": false,
- "err_name_mismatch": {
-  "stub": "bad_signature",
-  "expected": "banned_validator"
- }
+ "match": true
 }

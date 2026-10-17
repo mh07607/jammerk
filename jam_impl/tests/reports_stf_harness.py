@@ -492,7 +492,10 @@ def run_vector(path_no_ext, verbose=True):
                         "stub": stub_out[1], "expected": j["output"]["err"]}}
         # ---- post state byte-equal: the stub mutates the pre-state components.
         # Tuple shapes: ok → (verdict, reported, reporters); err → (verdict, name).
-        if match:
+        if match:            # NOTE: {**pre, **stub_args} is identity-aliased (pre[name]
+                             # IS stub_args[name]); the stub mutates the pre objects in
+                             # place, so this encodes the stub's mutated components even
+                             # though the dict still holds pre-derived values.
             encoded = encode_reports_state({**pre, **stub_args})
             want = b[out_off:]
             if encoded != want:
@@ -501,7 +504,8 @@ def run_vector(path_no_ext, verbose=True):
                           if encoded[k] != want[k]), None)
                 i = len(want) if i is None and len(encoded) != len(want) else i
                 report_added = {"post_state_mismatch": {
-                    "stub": _jsonify({name: pre[name] for name in STUB_COMPONENTS}),
+                    "stub": _jsonify({name: ({**pre, **stub_args})[name]
+                                      for name in STUB_COMPONENTS}),
                     "expected_post": _jsonify(post),
                     "first_diff_octet": i,
                     "encoded_hex_head": encoded[:16].hex(),
@@ -524,7 +528,7 @@ def run_vector(path_no_ext, verbose=True):
                     if stub_out[0] == "ok" else {"err": stub_out[1]}
                     if isinstance(stub_out, tuple) and len(stub_out) > 2 else None},
             expected_post=_jsonify(post),
-            stub_post=_jsonify({name: pre[name] for name in STUB_COMPONENTS})
+            stub_post=_jsonify({name: ({**pre, **stub_args})[name] for name in STUB_COMPONENTS})
                       if isinstance(stub_out, tuple) else None,
             match=match, **report_added)
         return report

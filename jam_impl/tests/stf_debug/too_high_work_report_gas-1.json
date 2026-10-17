@@ -587,7 +587,7 @@
    ]
   },
   "accounts": [
-   "<__main__.ServiceRecord object at 0x73a560b075f0>"
+   "<__main__.ServiceRecord object at 0x77ee86e19310>"
   ],
   "core_statistics_post": [
    {
@@ -649,32 +649,88 @@
   "availability_assignments": {
    "assignments": [
     null,
-    null
+    {
+     "report": {
+      "package_spec": {
+       "hash": "0x316504b8883be5404f8d50c253fa1875f3a5e051b691a0ddecc79466df543ea4",
+       "length": 17042,
+       "erasure_root": "0x9fc7e637969aef1a95dfb560a914cf5161a76498db3aa19df131cea199ed6e44",
+       "exports_root": "0x5c9dca800c145685f052ce1ba343e2b66b4c333ee4c4ca3b29cb347b1009cb83",
+       "exports_count": 3
+      },
+      "context": {
+       "anchor": "0x39cb518983b02695034b3b92cb31a7334e1a2ec3ef7dbfa32c68e4e8444363f1",
+       "state_root": "0xd8c577816b629241676502d0461e4eae42a375461314d64484f35f4228da23d6",
+       "beefy_root": "0xf5df0c11416d43c55b43e096572d450b7780ed0fd7b540f26c8ded8e0d41e183",
+       "lookup_anchor": "0x16bda47e5a68daf53c39ddee8af4ecaced7e87f3f0ac9da5a6f4f9e41350d319",
+       "lookup_anchor_slot": 6,
+       "prerequisites": []
+      },
+      "core_index": 1,
+      "authorizer_hash": "0x9a3a97d1950356ef6d3c20acb5ab6699be454b1498ecd513bdc6d849497e42eb",
+      "auth_gas_used": 0,
+      "auth_output": "0x",
+      "segment_root_lookup": [],
+      "results": [
+       {
+        "service_id": 42,
+        "code_hash": "0x6470fd21983eae8d706f1edd5e2dc5afe095980f8fb7bd4ebfd33550d8730246",
+        "payload_hash": "0x3cf2d09da453bbdd6b68d8a1acd5f15ba23ba46d4ff087592b3d319432500a50",
+        "accumulate_gas": 10000000,
+        "result": "OK",
+        "result_payload": {
+         "ok": "0x64756d6d792d726573756c74"
+        },
+        "refine_load": {
+         "gas_used": 702,
+         "imports": 4,
+         "extrinsic_count": 9,
+         "extrinsic_size": 1924,
+         "exports": 12
+        }
+       }
+      ]
+     },
+     "timeout": 14
+    }
    ]
   },
   "core_statistics_post": [
    {
     "da_load": 0,
     "popularity": 0,
-    "imports": 0,
-    "extrinsic_count": 0,
-    "extrinsic_size": 0,
-    "exports": 0,
-    "bundle_size": 0,
-    "gas_used": 0
+    "imports": 8,
+    "extrinsic_count": 8,
+    "extrinsic_size": 1526,
+    "exports": 17,
+    "bundle_size": 17180,
+    "gas_used": 821
    },
    {
     "da_load": 0,
     "popularity": 0,
-    "imports": 0,
-    "extrinsic_count": 0,
-    "extrinsic_size": 0,
-    "exports": 0,
-    "bundle_size": 0,
-    "gas_used": 0
+    "imports": 4,
+    "extrinsic_count": 9,
+    "extrinsic_size": 1924,
+    "exports": 12,
+    "bundle_size": 17042,
+    "gas_used": 702
    }
   ],
-  "service_statistics_post": {},
+  "service_statistics_post": {
+   "42": {
+    "provided_count": 0,
+    "provided_size": 0,
+    "refinement_count": 17,
+    "refinement_gas_used": 1523,
+    "imports": 12,
+    "extrinsic_count": 17,
+    "extrinsic_size": 3450,
+    "exports": 29,
+    "accumulate_count": 0,
+    "accumulate_gas_used": 0
+   }
+  },
   "recent_history": {
    "history": [
     {
@@ -854,7 +910,7 @@
    "offenders": []
   },
   "accounts": [
-   "<__main__.ServiceRecord object at 0x73a560ac8c50>"
+   "<__main__.ServiceRecord object at 0x77ee86e1a150>"
   ],
   "accumulation_queue": {
    "queue": [
