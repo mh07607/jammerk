@@ -1,3 +1,4 @@
 .venv/
 jam_impl/book
+jam_impl/tests/stf_debug/
 __pycache__/

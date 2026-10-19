@@ -27,7 +27,7 @@ TICKETS_PER_VALIDATOR = {"tiny": 3, "full": 2}
 MAX_TICKETS_PER_EXTRINSIC = {"tiny": 3, "full": 16}
 CONTEST_DURATION = {"tiny": 10, "full": 500}
 CORE_SIZE = {"tiny": 3, "full": 3}
-# ROTATION_PERIOD: {"tiny": 10, "full": 10}
+ROTATION_PERIOD = {"tiny": 4, "full": 10}
 
 # jamtestvectors/codec/<spec>/<name>.{bin,json} — repo root is this file's
 # parent's parent's parent (jam_impl/codec/header_codec.py -> repo root).
@@ -63,6 +63,7 @@ def spec_globals(spec: str):
     util.MAX_TICKETS_ATTEMPT = TICKETS_PER_VALIDATOR[spec]
     util.TICKET_SUBMISSION_DEADLINE_IN_TIMESLOTS = CONTEST_DURATION[spec]
     util.CORE_SIZE = CORE_SIZE[spec]
+    util.ROTATION_PERIOD = ROTATION_PERIOD[spec]
     try:
         yield
     finally:

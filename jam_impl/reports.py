@@ -94,18 +94,26 @@ def reports_stf(availability_assignments: AvailabilityAssignments,   # ρ (mutat
     availability_assignments_package_hashes = [ assignment.report.package_spec.hash for assignment in availability_assignments.assignments if assignment is not None]    
     guarantee_core_index = -1
     package_hashes = util.StrictSet()        
-    for guarantee in guarantees:
+    for guarantee in guarantees:        
+        if guarantee.slot > current_slot:
+            return "err", "future_report_slot"
+        if guarantee.slot < current_slot - util.ROTATION_PERIOD:
+            return "err", "report_epoch_before_last"
         if guarantee.report.core_index not in range(util.CORE_SIZE):
             return "err", "bad_core_index", [], []
         if availability_assignments.assignments[guarantee.report.core_index] is not None:
-            return "err", "core_engaged", [], []
+            return "err", "core_engaged", [], []    
         if not guarantee.report.authorizer_hash in authorization_pools.pools[guarantee.report.core_index]:
             return "err", "core_unauthorized", [], []
-        if guarantee.report.core_index <= guarantee_core_index:
+        if guarantee.report.core_index <= guarantee_core_index:            
             return "err", "out_of_order_guarantee", [], []
         if len(guarantee.signatures) < 2/3 * util.CORE_SIZE:
-            return "err", "insufficient_guarantees", [], []        
-        anchor_in_recent_history  = False
+            return "err", "insufficient_guarantees", [], []   
+        if len(guarantee.report.results) == 0:
+            return "err", "missing_work_results"
+        if len(guarantee.report.context.prerequisites) + len(guarantee.report.segment_root_lookup) > util.MAX_REPORT_DEPENDENCIES:            
+            return "err", "too_many_dependencies"
+        anchor_in_recent_history  = False        
         for block in recent_history.history:
             if block.header_hash == guarantee.report.context.anchor:
                 if not block.beefy_root == guarantee.report.context.beefy_root:
@@ -118,6 +126,36 @@ def reports_stf(availability_assignments: AvailabilityAssignments,   # ρ (mutat
             return "err", "anchor_not_recent", [], []
         if guarantee.report.context.lookup_anchor_slot < current_slot - util.MAX_LOOKUP_ANCHOR_AGE_IN_TIMESLOTS:
             return "err", "lookup_anchor_not_recent", [], []
+        for prerequisite in guarantee.report.context.prerequisites:
+            prereq_found = False
+            if prerequisite in [ g.report.package_spec.hash for g in guarantees ]:
+                prereq_found = True                
+            if not prereq_found:
+                for block in recent_history.history:
+                    reported = [report.hash for report in block.reported]
+                    if prerequisite in reported:
+                        prereq_found = True
+                        break   
+            if not prereq_found:
+                return "err", "dependency_missing"
+        for segment_root in guarantee.report.segment_root_lookup:
+            segment_root_found = False
+            for g in guarantees:
+                if (g.report.package_spec.hash == segment_root.work_package_hash
+                    and g.report.package_spec.exports_root == segment_root.segment_tree_root):
+                    segment_root_found = True
+                    break
+            if not segment_root_found:
+                for block in recent_history.history:
+                    for report in block.reported:
+                        if (report.hash == segment_root.work_package_hash
+                            and report.exports_root == segment_root.segment_tree_root):
+                            segment_root_found = True
+                            break
+                    if segment_root_found:
+                        break
+            if not segment_root_found:
+                return "err", "segment_root_lookup_invalid"            
         if guarantee.slot // util.ROTATION_PERIOD == current_slot // util.ROTATION_PERIOD:
             guarantor_assignments = current_guarantor_assignments
         else:
@@ -142,6 +180,7 @@ def reports_stf(availability_assignments: AvailabilityAssignments,   # ρ (mutat
             validator_index = signature.validator_index
         # results_size = len(guarantee.report.auth_output) + sum([ len(result.result_payload.ok) for result in guarantee.report.results if result.result == WorkResult.OK ])                
         results_size = len(guarantee.report.auth_output)                
+        total_accumulation_gas = 0
         for result in guarantee.report.results:            
             service_account = None
             for account in accounts:
@@ -150,11 +189,16 @@ def reports_stf(availability_assignments: AvailabilityAssignments,   # ρ (mutat
             if service_account is None:
                 return "err", "bad_service_id", [], []
             if service_account.code_hash() != result.code_hash:
-                return "err", "bad_code_hash", [], []            
+                return "err", "bad_code_hash", [], [] 
+            if result.accumulate_gas < service_account.min_item_gas():
+                return "err", "service_item_gas_too_low"
             if result.result == WorkResult.OK:
-                results_size += len(result.result_payload.ok)                                       
+                results_size += len(result.result_payload.ok)
+            total_accumulation_gas += result.accumulate_gas            
         if results_size > MAX_RESULTS_SIZE:
             return "err", "work_report_too_big", [], []
+        if total_accumulation_gas > util.MAX_GAS:
+            return "err", "work_report_gas_too_high"
         try:
             package_hashes.add(guarantee.report.package_spec.hash)
         except ValueError as e:
@@ -189,7 +233,7 @@ def reports_stf(availability_assignments: AvailabilityAssignments,   # ρ (mutat
         # for result in guarantee.report.results:
         #     service_statistics_post[result.service_id] 
         #     result.service_id
-        availability_assignments.assignments[guarantee_core_index] = AvailabilityAssignment(
+        availability_assignments.assignments[guarantee.report.core_index] = AvailabilityAssignment(
             report=guarantee.report,
             timeout=current_slot
         )        
@@ -205,7 +249,9 @@ def reports_stf(availability_assignments: AvailabilityAssignments,   # ρ (mutat
         else:
             guarantor_assignments = previous_guarantor_assignments
         for signature in guarantee.signatures:            
-            reporters.append(guarantor_assignments.validators[signature.validator_index].ed25519)
+            key = guarantor_assignments.validators[signature.validator_index].ed25519
+            if key not in reporters:
+                reporters.append(key)
     reporters.sort()
     reported.sort(key=lambda x: x[0])        
     # reported.sort(key=lambda x: x["work_package_hash"])
