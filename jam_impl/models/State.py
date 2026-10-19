@@ -57,27 +57,27 @@ class ValidatorStatistics:  # jam-types.asn: ValidatorActivityRecord (π_V/π_L 
 
 @dataclass
 class CoreStatistics:  # jam-types.asn: CoreActivityRecord (π_C entry) — ALL fields compact
-    da_load: int             # total DA bytes written (compact N)
-    popularity: int          # assurance super-majority count (compact N)
-    imports: int             # segments imported from DA (compact N)
-    extrinsic_count: int     # extrinsics for reported work (compact N)
-    extrinsic_size: int      # total extrinsic size (compact N)
-    exports: int             # segments exported to DA (compact N)
-    bundle_size: int         # serialized work bundle size (compact N)
-    gas_used: int            # total gas consumed (compact N)
+    da_load: int = 0            # total DA bytes written (compact N)
+    popularity: int = 0         # assurance super-majority count (compact N)
+    imports: int = 0            # segments imported from DA (compact N)
+    extrinsic_count: int = 0     # extrinsics for reported work (compact N)
+    extrinsic_size: int = 0      # total extrinsic size (compact N)
+    exports: int = 0             # segments exported to DA (compact N)
+    bundle_size: int = 0        # serialized work bundle size (compact N)
+    gas_used: int = 0           # total gas consumed (compact N)
 
 @dataclass
 class ServiceStatistics:  # jam-types.asn: ServiceActivityRecord (π_S entry) — ALL fields compact
-    provided_count: int      # preimages provided to this service (compact N)
-    provided_size: int       # total preimage size (compact N)
-    refinement_count: int    # work-items refined (compact N)
-    refinement_gas_used: int # refinement gas (compact N)
-    imports: int             # segments imported (compact N)
-    extrinsic_count: int     # extrinsics used (compact N)
-    extrinsic_size: int      # total extrinsic size (compact N)
-    exports: int              # segments exported (compact N)
-    accumulate_count: int    # work-items accumulated (compact N)
-    accumulate_gas_used: int # accumulation gas (compact N)
+    provided_count: int = 0      # preimages provided to this service (compact N)
+    provided_size: int = 0       # total preimage size (compact N)
+    refinement_count: int = 0   # work-items refined (compact N)
+    refinement_gas_used: int = 0 # refinement gas (compact N)
+    imports: int = 0          # segments imported (compact N)
+    extrinsic_count: int = 0     # extrinsics used (compact N)
+    extrinsic_size: int = 0      # total extrinsic size (compact N)
+    exports: int = 0            # segments exported (compact N)
+    accumulate_count: int = 0  # work-items accumulated (compact N)
+    accumulate_gas_used: int = 0 # accumulation gas (compact N)
 
 @dataclass
 class TicketBody:  # GP 6.6 (γ_A entry): ring-VRF output id + attempt
@@ -104,7 +104,9 @@ class BlockInfo:  # jam-types.asn: BlockInfo (one β_H history record)
 @dataclass
 class ReadyRecord:  # jam-types.asn: ReadyRecord (ω entry): report + dependencies
     report: Report                  # work report ready for accumulation
-    dependencies: StrictSet         # ↕-prefixed work-package hashes; GP: a set
+    # ↕-prefixed sequence of work-package hashes (GP 12.3: the ω-entry's
+    # unfulfilled dependencies, a set); wire elements are hashes
+    dependencies: StrictSet[bytes]
 
 
 # ---------------------------------------------------------------------------
@@ -273,7 +275,7 @@ class AccumulationQueue:  # C(14): ω — ready records per slot (epoch-length)
 
 @dataclass
 class AccumulationHistory:  # C(15): ξ — accumulated work-package hashes per slot
-    history: list[StrictSet]  # fixed epoch-length slots, each ↕-prefixed; GP: sets
+    history: list[StrictSet[bytes]]  # fixed epoch-length slots; GP 12.1: ξ = per-slot sets of accumulated work-package hashes
 
     def key(self) -> bytes:  # C(15)
         return C15_KEY

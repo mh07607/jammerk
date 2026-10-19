@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 import hashlib
 
 HASH_LEN_IN_BYTES = 32
@@ -12,7 +13,14 @@ TICKET_SUBMISSION_DEADLINE_IN_TIMESLOTS = 500
 MAX_TICKETS_IN_EXTRINSIC = 16
 MAX_TICKETS_ATTEMPT = 2
 CORE_SIZE = 3
+MAX_LOOKUP_ANCHOR_AGE_IN_TIMESLOTS = 14400
+ROTATION_PERIOD = 10
+MAX_REPORT_DEPENDENCIES = 8
+MAX_GAS = 10 ** 7
 # NUM_CORES = NUM_VALIDATORS_IN_EPOCH_MARK // CORE_SIZE
+
+def core_count() -> int:
+    return NUM_VALIDATORS_IN_EPOCH_MARK // CORE_SIZE
 
 def hash_via_blake2b(data: bytes) -> bytes:
     return hashlib.blake2b(data, digest_size=HASH_LEN_IN_BYTES).digest()
@@ -127,15 +135,21 @@ class Encoder():
 Reader = Decoder
 
 
-class StrictSet(set):
-    """A set that refuses duplicates"""
+class StrictSet[T](set[T]):
+    """A set that refuses duplicates.
 
-    def __init__(self, iterable=None):
+    Generic over its element type (PEP 695): StrictSet[bytes] for ↕-prefixed
+    hash sequences (ω dependencies, ξ histories), StrictSet[R] where a model
+    stores report objects, etc. The element type was previously only in
+    comments, which made State.py annotations like `dependencies: StrictSet`
+    ambiguous to pyright and to readers."""
+
+    def __init__(self, iterable: Iterable[T] | None = None):
         if iterable is not None:
             for item in iterable:
                 self.add(item)
 
-    def add(self, item):
+    def add(self, item: T):
         if item in self:
             raise ValueError(f"Duplicate item found: {item!r}")
         super().add(item)
@@ -168,6 +182,39 @@ def decode_compact(b: bytes, offset: int = 0) -> tuple[int, int]:
 
 def maybe_bytes(blob: bytes | None) -> bytes:
     return b"\x00" if blob is None else b"\x01" + blob
+
+def fisher_yates_shuffle(lst: list, sequence: list[int]) -> list:
+    """Iterative FY — the recursive original exceeded the depth limit at
+    V=1023 (kept below for reference). Per-draw semantics are the ORIGINAL's,
+    which is NOT work.pop(i): removing element i swaps the LAST element into
+    the hole and shrinks the tail (pop would shift the remainder left and
+    diverges from the GP vectors from draw 2 on). Output list pre-allocated:
+    out has exactly len(lst) slots, filled by index k — no growth-reallocation."""
+    n = len(lst)
+    work = list(lst)
+    out = [None] * n
+    for k in range(n):
+        i = sequence[k] % len(work)
+        out[k] = work[i]
+        work[i] = work[-1]      # last element fills the hole (swap-last)
+        work.pop()              # O(1) tail shrink == work[:-1] in the original
+    return out
+
+# recursion depth exceeded at V=1023
+# def fisher_yates_shuffle(lst: list, sequence: list[int]):
+#     if lst == []:
+#         return []
+#     i = sequence[0] % len(lst)
+#     lst_prime = lst[:]
+#     popped = lst[i]
+#     lst_prime[i] = lst[-1]
+#     return [popped] + fisher_yates_shuffle(lst_prime[:-1], sequence[1:])
+
+def fisher_yates_shuffle_from_hash32(lst: list, h: bytes):
+    sequence = [None] * len(lst)
+    for i in range(len(lst)):        
+        sequence[i] = decode_fixed(hash_via_blake2b(h + u32(i // 8))[4*i % 32: 4*i % 32 + 4], 4)        
+    return fisher_yates_shuffle(lst, sequence)
 
 if __name__ == "__main__":    
     from jam_impl.codec.header_codec import decode_header

@@ -14,5 +14,6 @@ The more milestones your team completes, the more competitive your submission wi
 2. using jamdot's bandersnatch vrf.
 
 # TODO
-1. Some errors in Safrole remain unhandled
+1. Some errors (not present in test vectors) in Safrole remain unhandled
 2. Move spec_globals out of header_codec
+4. Many of the inputs to STF components need to be readonly e.g. accumulation_queue and accumulation_history in reports_stf
