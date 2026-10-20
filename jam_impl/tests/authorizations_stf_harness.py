@@ -94,13 +94,12 @@ from jam_impl.util import Decoder, Encoder
 from jam_impl.codec.header_codec import spec_globals
 from jam_impl.codec.state_codec import (
     decode_authorization_pool, encode_authorization_pool,
-    decode_authorization_queue, encode_authorization_queue,
-    AUTHORIZATION_QUEUE_LENGTH,
+    decode_authorization_queue, encode_authorization_queue,    
 )
 from jam_impl.models.State import AuthorizationPool, AuthorizationQueue
 
 POOL_CAP = 8                      # Cauthpoolsize — wire-verified on both specs
-QUEUE_LEN = AUTHORIZATION_QUEUE_LENGTH   # Cauthqueuesize (80)
+QUEUE_LEN = util.AUTHORIZATION_QUEUE_LENGTH   # Cauthqueuesize (80)
 
 
 # ---------------------------------------------------------------------------

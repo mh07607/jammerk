@@ -31,6 +31,8 @@ GP equation map (leave this in the docstring):
   No err paths: the output leg of this stf is NULL.
 """
 import jam_impl.util as util
+from jam_impl.models.State import AuthorizationQueue
+from jam_impl.models.State import AuthorizationPool
 from dataclasses import dataclass
 
 type AuthorizationsVerdict = None
@@ -45,9 +47,19 @@ class CoreAuthorizer:
     auth_hash: bytes    # 32-octet authorizer hash
 
 
-def authorizations_stf(authorization_pools,                              # α (mutated)
-                       authorization_queues: "AuthorizationQueue",       # ϕ (read-only)
+def authorizations_stf(authorization_pools: AuthorizationPool,     # α (mutated)
+                       authorization_queues: AuthorizationQueue,       # ϕ (read-only)
                        guarantees_core_authors: list[CoreAuthorizer],    # per E_G item
                        current_slot: int,                                # τ'
-                       spec: str = "tiny") -> AuthorizationsVerdict:
-    raise NotImplementedError
+                       spec: str = "tiny") -> AuthorizationsVerdict: 
+    num_cores_checked = 0     # to avoid checking cores already dealt with                
+    for i in range(util.core_count()):
+      for guarantees_core_author in guarantees_core_authors[num_cores_checked:]:
+        if guarantees_core_author.core == i:          
+          authorization_pools.pools[i].remove(guarantees_core_author.auth_hash)
+          num_cores_checked += 1
+      authorization_pools.pools[i].append(authorization_queues.queues[i][current_slot % util.AUTHORIZATION_QUEUE_LENGTH])      
+      pool_length = len(authorization_pools.pools[i])
+      if pool_length > util.MAX_ITEMS_IN_AUTH_POOL:        
+        authorization_pools.pools[i] = authorization_pools.pools[i][pool_length - util.MAX_ITEMS_IN_AUTH_POOL:]      
+    return None
