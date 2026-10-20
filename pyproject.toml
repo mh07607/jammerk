@@ -19,6 +19,7 @@ dev = [
     "tqdm",
     "bandersnatch-vrfs",
     "pynacl>=1.6.2",
+    "pycryptodome"
 ]
 
 [tool.uv.build-backend]

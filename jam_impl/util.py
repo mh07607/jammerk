@@ -1,5 +1,6 @@
 from collections.abc import Iterable
 import hashlib
+from Crypto.Hash import keccak
 
 HASH_LEN_IN_BYTES = 32
 ZERO_HASH = bytes(HASH_LEN_IN_BYTES)
@@ -17,6 +18,7 @@ MAX_LOOKUP_ANCHOR_AGE_IN_TIMESLOTS = 14400
 ROTATION_PERIOD = 10
 MAX_REPORT_DEPENDENCIES = 8
 MAX_GAS = 10 ** 7
+MAX_BLOCKS_IN_RECENT_HISTORY = 8
 # NUM_CORES = NUM_VALIDATORS_IN_EPOCH_MARK // CORE_SIZE
 
 def core_count() -> int:
@@ -27,7 +29,9 @@ def hash_via_blake2b(data: bytes) -> bytes:
 
 # TO-DO
 def hash_via_keccak256(data: bytes) -> bytes:
-    pass
+    keccak_hash = keccak.new(digest_bits=HASH_LEN_IN_BYTES * 8)
+    keccak_hash.update(data)
+    return keccak_hash.digest()
 
 
 def encode_fixed(x: int, length: int) -> bytes:

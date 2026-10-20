@@ -21,6 +21,7 @@ def check_flag(key: bytes, i: int) -> bool:
     mask = 1 << bit_index    
     return flag_byte & mask != 0
 
+# TODO: Convert this to iterative loop?
 def merklization(state_key_vals, i = 0) -> bytes:
     if len(state_key_vals) == 0:
         return util.ZERO_HASH
