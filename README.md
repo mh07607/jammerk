@@ -17,6 +17,7 @@ The more milestones your team completes, the more competitive your submission wi
 1. Some errors (not present in test vectors) in Safrole remain unhandled
 2. Move spec_globals out of header_codec
 4. Many of the inputs to STF components need to be readonly e.g. accumulation_queue and accumulation_history in reports_stf
+5. Make merklization iterative to prevent future recursion depth problems?
 
 # Queries
 1. Shouldn't the case of account service id not found be handled in stf/preimage vectors?
