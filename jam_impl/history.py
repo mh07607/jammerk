@@ -49,8 +49,7 @@ def history_stf(recent_history: RecentHistory,               # β (mutated)
                 parent_state_root: bytes,                    # H_r (bytes32)
                 accumulate_root: bytes,                      # r (bytes32)
                 work_packages: list[ReportedWorkPackage],    # this block's
-                spec: str = "tiny") -> HistoryVerdict:
-    # raise NotImplementedError    
+                spec: str = "tiny") -> HistoryVerdict:    
     if len(recent_history.history) > 0:
         recent_history.history[-1].state_root = parent_state_root
     if len(recent_history.history) == util.MAX_BLOCKS_IN_RECENT_HISTORY:
@@ -61,7 +60,5 @@ def history_stf(recent_history: RecentHistory,               # β (mutated)
         beefy_root=mmr_superpeak(recent_history.mmr_peaks),
         state_root=b'\0' * util.HASH_LEN_IN_BYTES,
         reported=work_packages
-    ))
-    # print(recent_history.mmr_peaks, accumulate_root)    
-    # print(recent_history.mmr_peaks)
+    ))    
     return None
