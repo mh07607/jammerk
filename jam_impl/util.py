@@ -79,6 +79,10 @@ class Decoder():
     def u16(self) -> int: return decode_fixed(self.take(2), 2)
     def u32(self) -> int: return decode_fixed(self.take(4), 4)
     def u64(self) -> int: return decode_fixed(self.take(8), 8)
+    def decode_fixed(self, n: int) -> int: return decode_fixed(self.take(n), n)
+    def decode_bits(self, n: int) -> list[int]:
+        octets = self.take(n // 8)
+        return [ (octets[i // 8] >> (i % 7)) & 1 for i in range(n)]
     def hash32(self) -> bytes: return self.take(32)
 
     def decode_compact(self) -> int:
