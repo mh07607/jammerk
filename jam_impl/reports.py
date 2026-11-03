@@ -37,19 +37,16 @@ class ServiceRecord:
         return self.definition.data.service.balance
 
 
-@dataclass
-class GuarantorAssignments:
-    permutation: list[int]
-    validators: list
-
-
-def core_rotation(arr: list, n: int):
-    return [ (x + n) % util.core_count() for x in arr ]
-
-
-def core_permutation(entropy: bytes, slot: int):
-    lst = [ util.core_count() * i // util.NUM_VALIDATORS_IN_EPOCH_MARK for i in range(util.NUM_VALIDATORS_IN_EPOCH_MARK) ]
-    return core_rotation(util.fisher_yates_shuffle_from_hash32(lst, entropy), (slot % util.LENGTH_OF_EPOCH_IN_TIMESLOTS) // util.ROTATION_PERIOD )
+# The guarantor-assignment machinery (GP \guarantorassignments,
+# \guarantorassignmentsunderlastrotation, eq:guarantorsig) now lives in
+# jam_impl/guarantors.py — it is shared with the STATISTICS step, which
+# consumes the reporters set this step produces.  The names are re-exported
+# here so existing importers of jam_impl.reports keep working.
+from jam_impl.guarantors import (   # noqa: E402
+    GuarantorAssignments,
+    guarantor_assignments as build_guarantor_assignments,
+    prior_guarantor_assignments,    
+)
 
 
 type Reported = list[tuple[bytes, bytes]]  # (work_package_hash, exports_root)
@@ -74,20 +71,12 @@ def reports_stf(availability_assignments: AvailabilityAssignments,   # ρ (mutat
                 spec: str = "tiny") -> ReportsVerdict:
     X_GUARANTEE = b'jam_guarantee'
     MAX_RESULTS_SIZE = 48 * 2 ** 10
-    current_guarantor_assignments = GuarantorAssignments(
-        permutation=core_permutation(entropy.values[2], current_slot),
-        validators=remove_offenders(current_validators.validators, disputes.offenders)
-    )
-    if (current_slot - util.ROTATION_PERIOD)//util.LENGTH_OF_EPOCH_IN_TIMESLOTS == current_slot // util.LENGTH_OF_EPOCH_IN_TIMESLOTS:
-        previous_guarantor_assignments = GuarantorAssignments( 
-            permutation=core_permutation(entropy.values[2], current_slot - util.ROTATION_PERIOD),
-            validators=remove_offenders(current_validators.validators, disputes.offenders)
-        )
-    else:
-        previous_guarantor_assignments = GuarantorAssignments( 
-            permutation=core_permutation(entropy.values[3], current_slot - util.ROTATION_PERIOD), 
-            validators=remove_offenders(previous_validators.validators, disputes.offenders)
-        )
+    current_guarantor_assignments: GuarantorAssignments = build_guarantor_assignments(
+        current_validators.validators, entropy.values[2], current_slot,
+        disputes.offenders)
+    previous_guarantor_assignments: GuarantorAssignments = prior_guarantor_assignments(
+        current_validators.validators, previous_validators.validators,
+        entropy.values[2], entropy.values[3], current_slot, disputes.offenders)
 
     # service_ids = [ service_record.service_id for service_record in accounts]
     accumulation_queue_package_hashes = [ ready_record.report.package_spec.hash for ready_record_slot in accumulation_queue.queue for ready_record in ready_record_slot  ]

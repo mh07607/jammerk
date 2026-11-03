@@ -22,18 +22,18 @@ def trace(blobs: list[bytes], i: int, hash_function: Callable):
         return []
     mid = math.ceil(len(blobs) / 2)    
     if not i < mid:
-        trace_blob = blob[mid:]
-        n = node(blob[:mid], hash_function)
+        trace_blob = blobs[mid:]
+        n = node(blobs[:mid], hash_function)
     else:
-        trace_blob = blob[:mid]
-        n = node(blob[mid:], hash_function)        
+        trace_blob = blobs[:mid]
+        n = node(blobs[mid:], hash_function)        
     new_index = i - 0 if i < mid else mid
     return [n] + trace(trace_blob, new_index, hash_function)
 
 
 def well_balanced_merkle(blobs: list[bytes], hash_function: Callable = util.hash_via_blake2b) -> bytes:
     if len(blobs) == 1:
-        return hash_function[blobs[0]]
+        return hash_function(blobs[0])
     return node(blobs, hash_function)
 
 

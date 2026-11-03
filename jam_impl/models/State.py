@@ -48,12 +48,12 @@ class ValidatorData:  # jam-types.asn: ValidatorData (one entry of ι/κ/λ/γ_P
 
 @dataclass
 class ValidatorStatistics:  # jam-types.asn: ValidatorActivityRecord (π_V/π_L entry)
-    blocks: int              # blocks produced, u32
-    tickets: int             # safrole tickets consumed, u32
-    pre_images: int          # preimages introduced, u32
-    pre_images_size: int    # total octets introduced, u32
-    guarantees: int          # reports guaranteed, u32
-    assurances: int          # availability assurances, u32
+    blocks: int = 0             # blocks produced, u32
+    tickets: int = 0          # safrole tickets consumed, u32
+    pre_images: int = 0         # preimages introduced, u32
+    pre_images_size: int = 0   # total octets introduced, u32
+    guarantees: int = 0         # reports guaranteed, u32
+    assurances: int = 0         # availability assurances, u32
 
 @dataclass
 class CoreStatistics:  # jam-types.asn: CoreActivityRecord (π_C entry) — ALL fields compact

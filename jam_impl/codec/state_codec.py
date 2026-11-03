@@ -16,7 +16,7 @@ from jam_impl.models.State import (
 )
 from collections.abc import Callable
 
-AUTHORIZATION_QUEUE_LENGTH = 80
+# AUTHORIZATION_QUEUE_LENGTH = 80
 RECENT_HISTORY_LENGTH = 8
 TICKET_ENTRY_PER_VALIDATOR_COUNT = 2
 VALIDATORS_PER_CORE = 3
@@ -96,7 +96,7 @@ def decode_authorization_queue(b: bytes) -> AuthorizationQueue:
     d = Decoder(b)
     queues = []
     for _ in range(core_count()):
-        queues.append([d.hash32() for _ in range(AUTHORIZATION_QUEUE_LENGTH)])
+        queues.append([d.hash32() for _ in range(util.AUTHORIZATION_QUEUE_LENGTH)])
     d.finish()
     return AuthorizationQueue(queues=queues)
 
@@ -104,8 +104,8 @@ def decode_authorization_queue(b: bytes) -> AuthorizationQueue:
 def encode_authorization_queue(queue: AuthorizationQueue) -> bytes:
     e = Encoder()
     for core_queue in queue.queues:
-        assert len(core_queue) == AUTHORIZATION_QUEUE_LENGTH, \
-            f"each authorization queue must hold {AUTHORIZATION_QUEUE_LENGTH} authorizers"
+        assert len(core_queue) == util.AUTHORIZATION_QUEUE_LENGTH, \
+            f"each authorization queue must hold {util.AUTHORIZATION_QUEUE_LENGTH} authorizers"
         for authorizer in core_queue:
             e.hash32(authorizer)
     return e.finish()
