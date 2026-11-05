@@ -2,19 +2,45 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 import jam_impl.util as util
+# from jam_impl.pvm_instruction_definitions import trap
 
 MIN_ADDRESS = 2**16
 MAX_INSTRUCTION_LENGTH = 24
+TERMINATION_OPCODE_NUMBERS = [0, 1, 40, 50, 80, 180]
 
-INSTRUCTION_TABLE: dict[int, Callable] = {
-    0b00000000: 
-}
+
+@dataclass
+class PVMState:
+    program: Program
+    registers: list
+    memory: Memory
+    gas: int
+    instruction_register: int
+
 
 @dataclass
 class Program:
     instruction_data: bytes
     jump_table: list[int]
-    opcode_bitmask: list[int]
+    opcode_bitmask: list[bool]
+
+    def basic_block_and_termination_indices(self):
+        n = 0
+        indices = []
+        while n < len(self.instruction_data):
+            m = n + 1 + skip_to_next_instruction(n, self.opcode_bitmask)
+            if (
+                m < len(self.instruction_data)
+                and self.opcode_bitmask[n]
+                and self.instruction_data[n] in TERMINATION_OPCODE_NUMBERS
+                and self.opcode_bitmask[m]
+                # TODO: add correct version of this line
+                # and self.instruction_data[m] in INSTRUCTION_TABLE.keys()
+            ):
+                indices.append(m)
+            n = m
+        return indices
+
 
 @dataclass
 class Memory:
@@ -28,14 +54,14 @@ class Memory:
     # run only after the gate passed, so they do no access check here; they only
     # canonicalize and mask.
     def _page(self, address: int) -> str | None:
-        page = (address % 2**32) >> 12        # cyclic subscript: wraps at 2^32
-        return self.access.get(page, None)    # 'W' | 'R' | None (None = inaccessible)
+        page = (address % 2**32) >> 12  # cyclic subscript: wraps at 2^32
+        return self.access.get(page, None)  # 'W' | 'R' | None (None = inaccessible)
 
     def readable(self, start: int, length: int) -> bool:
         return all(self._page(start + i) is not None for i in range(length))
 
     def writable(self, start: int, length: int) -> bool:
-        return all(self._page(start + i) == 'W' for i in range(length))
+        return all(self._page(start + i) == "W" for i in range(length))
 
     def read(self, address: int, length: int) -> list[int]:
         base = address % 2**32
@@ -49,22 +75,38 @@ class Memory:
             self.values[(base + i) % 2**32] = octet & 0xFF
 
 
+# INSTRUCTION_TABLE: dict[int, Callable] = {0: trap}
+
+
 # GP
-def single_step_state_transition(instruction_data: bytes, opcode_bitmask_bitmask: bytes, jump_table: list[int], register_val: int, gas: int, registers: list[int], memory: Memory):
+def single_step_state_transition(
+    instruction_data: bytes,
+    opcode_bitmask: list[bool],
+    jump_table: list[int],
+    i: int,
+    gas: int,
+    registers: list[int],
+    memory: Memory,
+):
     # only 13 registers
     # panic when an index of RAM below 2^16 is required
     # otherwise fault if RAM is inaccessible
     # default case
     # memory and registors don't change
-    register_val = register_val + 1 + skip_to_next_instruction(register_val, opcode_bitmask)
-    gas = gas - 1 # gas cost per single step
+    i = i + 1 + skip_to_next_instruction(i, opcode_bitmask)
+    gas = gas - 1  # gas cost per single step
     # output = continue
     pass
 
 
 # A.17
-def branch():
-    pass
+def branch(i: int, branch_i: int, condition: bool):
+    if not condition:
+        return "resume", i
+    elif condition:
+        return "panic", i
+    else:
+        return "resume", branch_i
 
 
 # A.18
@@ -74,11 +116,11 @@ def dynamic_jump():
 
 # GP A.2
 def deblob(program: bytes) -> Program | str:
-    d = util.Decoder(program)    
+    d = util.Decoder(program)
     jump_table_length = d.decode_compact()
     jump_table_width = d.u8()
     instruction_data_length = d.decode_compact()
-    jump_table = [ d.decode_fixed(jump_table_width) for _ in range(jump_table_length) ]
+    jump_table = [d.decode_fixed(jump_table_width) for _ in range(jump_table_length)]
     instruction_data = d.take(instruction_data_length)
     opcode_bitmask = d.decode_bits(instruction_data_length)
     try:
@@ -86,30 +128,32 @@ def deblob(program: bytes) -> Program | str:
         return Program(
             instruction_data=instruction_data,
             jump_table=jump_table,
-            opcode_bitmask=opcode_bitmask
+            opcode_bitmask=opcode_bitmask,
         )
     except Exception as e:
         return "panic"
 
 
-#GP A.3
-def skip_to_next_instruction(i: int, opcode_bitmask: list[int]) -> int:
-    if j >= len(opcode_bitmask):
-        j = 0
+# GP A.3
+def skip_to_next_instruction(i: int, opcode_bitmask: list[bool]) -> int:
+    if i >= len(opcode_bitmask):
+        return 0
     else:
         for j in range(0, MAX_INSTRUCTION_LENGTH):
-            if opcode_bitmask[i+j+1]:
+            if opcode_bitmask[i + j + 1]:
                 break
-    return j
+        return j
 
 
 # GP A.1
-def invoke_pvm(program: bytes, register_val: int, gas: int, registers: list[int], memory):
+def invoke_pvm(
+    program: bytes, register_val: int, gas: int, registers: list[int], memory
+):
     code, k, j = deblob(program)
     out = single_step_state_transition(code, k, j, register_val, gas, registers, memory)
     if out.result == "continue":
         return invoke_pvm(program, out)
-    elif out.result == "out_of_gas": # doesn't exist in GP 0.8
+    elif out.result == "out_of_gas":  # doesn't exist in GP 0.8
         return (out_of_gas, register_val, out, registers, memory)
     elif out.result == "panic" or out.result == "halt":
         return (out, 0)
