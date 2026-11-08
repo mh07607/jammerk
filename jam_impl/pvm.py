@@ -2,20 +2,15 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 import jam_impl.util as util
-# from jam_impl.pvm_instruction_definitions import trap
+from jam_impl.pvm_instruction_mapping import (
+    INSTRUCTION_TYPE_AND_METHOD,
+    InstructionTypes,
+)
 
 MIN_ADDRESS = 2**16
 MAX_INSTRUCTION_LENGTH = 24
 TERMINATION_OPCODE_NUMBERS = [0, 1, 40, 50, 80, 180]
-
-
-@dataclass
-class PVMState:
-    program: Program
-    registers: list
-    memory: Memory
-    gas: int
-    instruction_register: int
+MEMORY_SIZE = 2**32
 
 
 @dataclass
@@ -75,14 +70,18 @@ class Memory:
             self.values[(base + i) % 2**32] = octet & 0xFF
 
 
-# INSTRUCTION_TABLE: dict[int, Callable] = {0: trap}
+@dataclass
+class PVMState:
+    program: Program
+    registers: list
+    memory: Memory
+    gas: int
+    instruction_register: int
 
 
 # GP
 def single_step_state_transition(
-    instruction_data: bytes,
-    opcode_bitmask: list[bool],
-    jump_table: list[int],
+    program: Program,
     i: int,
     gas: int,
     registers: list[int],
@@ -93,10 +92,53 @@ def single_step_state_transition(
     # otherwise fault if RAM is inaccessible
     # default case
     # memory and registors don't change
-    i = i + 1 + skip_to_next_instruction(i, opcode_bitmask)
+    instr_opcode = program.instruction_data[i]
+    if (
+        not program.opcode_bitmask[i]
+        or instr_opcode not in INSTRUCTION_TYPE_AND_METHOD.keys()
+    ):
+        return "err"  # TODO: handle error
+    instr_type, instr_method = INSTRUCTION_TYPE_AND_METHOD[instr_opcode]
+    skip_length = skip_to_next_instruction(i, program.opcode_bitmask)
+    if instr_type == InstructionTypes.NO_ARGS:
+        # TODO: handle the return
+        instr_method()
+    elif instr_type == InstructionTypes.ONE_IMM:
+        # TODO: handle this when understanding how host functions work
+        pass
+    elif instr_type == InstructionTypes.ONE_REG_ONE_EXT_IMM:
+        r_A = min(12, program.instruction_data[i + 1] % 16)
+        value = util.decode_fixed(program.instruction_data[i + 2 : i + 8], 8)
+        instr_method(registers, r_A, value)
+    elif instr_type == InstructionTypes.TWO_IMMS:
+        imm1_len = min(4, program.instruction_data[i + 1] % 8)
+        imm2_len = max(4, skip_length - imm1_len - 1)
+        imm1 = signed_extension(
+            util.decode_fixed(
+                program.instruction_data[i + 2 : i + 2 + imm1_len], imm1_len
+            ),
+            imm1_len,
+        )
+        imm2 = signed_extension(
+            util.decode_fixed(
+                program.instruction_data[
+                    i + 2 + imm1_len : i + 2 + imm1_len + imm2_len
+                ],
+                imm2_len,
+            ),
+            imm2_len,
+        )
+        instr_method(memory, imm1, imm2)
+
+    i = i + 1 + skip_length
     gas = gas - 1  # gas cost per single step
     # output = continue
     pass
+
+
+# A.16
+def signed_extension(x: int, n: int):
+    return x + (x // 2 ** (8 * n - 1)) * (2**64 - 2 ** (8 * n))
 
 
 # A.17
@@ -147,12 +189,12 @@ def skip_to_next_instruction(i: int, opcode_bitmask: list[bool]) -> int:
 
 # GP A.1
 def invoke_pvm(
-    program: bytes, register_val: int, gas: int, registers: list[int], memory
+    program_bytes: bytes, register_val: int, gas: int, registers: list[int], memory
 ):
-    code, k, j = deblob(program)
-    out = single_step_state_transition(code, k, j, register_val, gas, registers, memory)
+    program = deblob(program_bytes)
+    out = single_step_state_transition(program, register_val, gas, registers, memory)
     if out.result == "continue":
-        return invoke_pvm(program, out)
+        return invoke_pvm(program_bytes, out)
     elif out.result == "out_of_gas":  # doesn't exist in GP 0.8
         return (out_of_gas, register_val, out, registers, memory)
     elif out.result == "panic" or out.result == "halt":

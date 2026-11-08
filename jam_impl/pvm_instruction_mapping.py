@@ -21,7 +21,7 @@ class InstructionTypes(Enum):
 
 
 # opcode -> argument layout, GP 0.7.2 "Instruction Tables" (text/pvm.tex:218-687)
-INSTRUCTION_TYPE_AND_METHOD: dict[int, tuple[InstructionTypes, Callable]] = {
+INSTRUCTION_TYPE_AND_METHOD: dict = {
     # without arguments: trap, fallthrough (pvm.tex:236)
     0: (InstructionTypes.NO_ARGS, trap),
     1: (InstructionTypes.NO_ARGS, fallthrough),

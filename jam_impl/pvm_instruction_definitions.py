@@ -1,5 +1,5 @@
 import jam_impl.util as util
-from jam_impl.pvm import Memory, PVMState
+from jam_impl.pvm import Memory, PVMState, MEMORY_SIZE
 
 
 def handle_instr_with_one_reg_and_one_imm(
@@ -25,3 +25,10 @@ def ecalli():
 
 def load_imm_64(registers: list, r_A: int, value: int):
     registers[r_A] = value
+
+
+def store_imm_u8(memory: Memory, imm1: int, imm2: int):
+    memory.write(imm1, int(imm2 % 2**8).to_bytes())
+
+def store_imm_u16(memory: Memory, imm1: int, imm2: int):
+    memory.write(imm1) = imm2 % 2**16
