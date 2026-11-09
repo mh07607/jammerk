@@ -1,7 +1,16 @@
 from enum import Enum, auto
 from collections.abc import Callable
 
-from jam_impl.pvm_instruction_definitions import trap, fallthrough, ecalli, load_imm_64
+from jam_impl.pvm_instruction_definitions import (
+    store_imm_u16,
+    store_imm_u32,
+    store_imm_u64,
+    store_imm_u8,
+    trap,
+    fallthrough,
+    ecalli,
+    load_imm_64,
+)
 
 
 class InstructionTypes(Enum):
@@ -30,10 +39,10 @@ INSTRUCTION_TYPE_AND_METHOD: dict = {
     # one register & one extended-width immediate (8 octets): load_imm_64 (pvm.tex:268)
     20: (InstructionTypes.ONE_REG_ONE_EXT_IMM, load_imm_64),
     # two immediates: store_imm_u8/u16/u32/u64 (pvm.tex:285)
-    30: InstructionTypes.TWO_IMMS,
-    31: InstructionTypes.TWO_IMMS,
-    32: InstructionTypes.TWO_IMMS,
-    33: InstructionTypes.TWO_IMMS,
+    30: (InstructionTypes.TWO_IMMS, store_imm_u8),
+    31: (InstructionTypes.TWO_IMMS, store_imm_u16),
+    32: (InstructionTypes.TWO_IMMS, store_imm_u32),
+    33: (InstructionTypes.TWO_IMMS, store_imm_u64),
     # one offset: jump (pvm.tex:308)
     40: InstructionTypes.ONE_OFFSET,
     # one register & one immediate: jump_ind, load_imm, load/store_u/i8..u64 (pvm.tex:326)

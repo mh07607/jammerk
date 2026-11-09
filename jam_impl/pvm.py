@@ -59,11 +59,11 @@ class Memory:
         return all(self._page(start + i) == "W" for i in range(length))
 
     def read(self, address: int, length: int) -> list[int]:
-        base = address % 2**32
+        base = address % MEMORY_SIZE
         return [self.values.get((base + i) % 2**32, 0) for i in range(length)]
 
     def write(self, address: int, octets: list[int]) -> None:
-        base = address % 2**32
+        base = address % MEMORY_SIZE
         for i, octet in enumerate(octets):
             # store rows define the reduction themselves (store_u8: reg mod 2^8);
             # the mask is that same reduction, idempotent at the dict boundary.
@@ -129,11 +129,67 @@ def single_step_state_transition(
             imm2_len,
         )
         instr_method(memory, imm1, imm2)
-
+    elif instr_type == InstructionTypes.ONE_OFFSET:
+        offset_len = min(4, skip_length)
+        offset = i + to_signed(
+            util.decode_fixed(
+                program.instruction_data[i + 1 : i + 1 + offset_len], offset_len
+            ),
+            offset_len,
+        )
+        # TODO: This isn't implemented yet, looks like a host function
+        instr_method(offset, True)
+    elif instr_type == InstructionTypes.ONE_REG_ONE_IMM:
+        reg_addr = min(12, program.instruction_data[i + 1] % 16)
+        imm_len = min(4, max(0, skip_length - 1))
+        imm = signed_extension(
+            util.decode_fixed(
+                program.instruction_data[i + 1 : i + 2 + imm_len], imm_len
+            ),
+            imm_len,
+        )
+        if instr_opcode == 50:
+            instr_method(registers[reg_addr], imm)
+        elif instr_opcode == 51:
+            instr_method(registers, reg_addr, imm)
+        else:
+            instr_method(registers, reg_addr, memory, imm)
+    elif instr_type == InstructionTypes.ONE_REG_TWO_IMM:
+        reg_addr = min(12, program.instruction_data[i + 1] % 16)
+        imm1_len = min(4, program.instruction_data[i + 1] // 16 % 8)
+        imm1 = signed_extension(
+            util.decode_fixed(
+                program.instruction_data[i + 2 : i + 2 + imm1_len], imm1_len
+            ),
+            imm1_len,
+        )
+        imm2_len = min(4, max(0, skip_length - imm1_len - 1))
+        imm2 = signed_extension(
+            util.decode_fixed(
+                program.instruction_data[
+                    i + 2 + imm1_len : i + 2 + imm1_len + imm2_len
+                ],
+                imm2_len,
+            ),
+            imm2_len,
+        )
+        instr_method(registers, reg_addr, memory, imm1, imm2)
+        registers[reg_addr]
     i = i + 1 + skip_length
     gas = gas - 1  # gas cost per single step
     # output = continue
     pass
+
+
+# A.10 - A.11 signed transitions
+def to_signed(x: int, n: int):
+    if x < 2 ** (8 * n - 1):
+        return x
+    return x - 2 ** (8 * n)
+
+
+def to_unsigned(x: int, n: int):
+    return (2 ** (8 * n) + x) % 2 ** (8 * n)
 
 
 # A.16
