@@ -1,0 +1,187 @@
+from enum import Enum, auto
+from collections.abc import Callable
+
+from jam_impl.pvm_instruction_definitions import (
+    store_imm_u16,
+    store_imm_u32,
+    store_imm_u64,
+    store_imm_u8,
+    trap,
+    fallthrough,
+    ecalli,
+    load_imm_64,
+)
+
+
+class InstructionTypes(Enum):
+    NO_ARGS = (auto(),)
+    ONE_IMM = (auto(),)
+    ONE_REG_ONE_EXT_IMM = (auto(),)
+    TWO_IMMS = (auto(),)
+    ONE_OFFSET = (auto(),)
+    ONE_REG_ONE_IMM = (auto(),)
+    ONE_REG_TWO_IMM = (auto(),)
+    ONE_REG_ONE_IMM_ONE_OFFSET = (auto(),)
+    TWO_REGS = (auto(),)
+    TWO_REGS_ONE_IMM = (auto(),)
+    TWO_REGS_ONE_OFFSET = (auto(),)
+    TWO_REGS_TWO_IMMS = (auto(),)
+    THREE_REGS = (auto(),)
+
+
+# opcode -> argument layout, GP 0.7.2 "Instruction Tables" (text/pvm.tex:218-687)
+INSTRUCTION_TYPE_AND_METHOD: dict = {
+    # without arguments: trap, fallthrough (pvm.tex:236)
+    0: (InstructionTypes.NO_ARGS, trap),
+    1: (InstructionTypes.NO_ARGS, fallthrough),
+    # one immediate: ecalli (pvm.tex:250)
+    10: (InstructionTypes.ONE_IMM, ecalli),
+    # one register & one extended-width immediate (8 octets): load_imm_64 (pvm.tex:268)
+    20: (InstructionTypes.ONE_REG_ONE_EXT_IMM, load_imm_64),
+    # two immediates: store_imm_u8/u16/u32/u64 (pvm.tex:285)
+    30: (InstructionTypes.TWO_IMMS, store_imm_u8),
+    31: (InstructionTypes.TWO_IMMS, store_imm_u16),
+    32: (InstructionTypes.TWO_IMMS, store_imm_u32),
+    33: (InstructionTypes.TWO_IMMS, store_imm_u64),
+    # one offset: jump (pvm.tex:308)
+    40: InstructionTypes.ONE_OFFSET,
+    # one register & one immediate: jump_ind, load_imm, load/store_u/i8..u64 (pvm.tex:326)
+    50: InstructionTypes.ONE_REG_ONE_IMM,
+    51: InstructionTypes.ONE_REG_ONE_IMM,
+    52: InstructionTypes.ONE_REG_ONE_IMM,
+    53: InstructionTypes.ONE_REG_ONE_IMM,
+    54: InstructionTypes.ONE_REG_ONE_IMM,
+    55: InstructionTypes.ONE_REG_ONE_IMM,
+    56: InstructionTypes.ONE_REG_ONE_IMM,
+    57: InstructionTypes.ONE_REG_ONE_IMM,
+    58: InstructionTypes.ONE_REG_ONE_IMM,
+    59: InstructionTypes.ONE_REG_ONE_IMM,
+    60: InstructionTypes.ONE_REG_ONE_IMM,
+    61: InstructionTypes.ONE_REG_ONE_IMM,
+    62: InstructionTypes.ONE_REG_ONE_IMM,
+    # one register & two immediates: store_imm_ind_u8/u16/u32/u64 (pvm.tex:359)
+    70: InstructionTypes.ONE_REG_TWO_IMM,
+    71: InstructionTypes.ONE_REG_TWO_IMM,
+    72: InstructionTypes.ONE_REG_TWO_IMM,
+    73: InstructionTypes.ONE_REG_TWO_IMM,
+    # one register, one immediate & one offset: load_imm_jump, branch_*_imm (pvm.tex:385)
+    80: InstructionTypes.ONE_REG_ONE_IMM_ONE_OFFSET,
+    81: InstructionTypes.ONE_REG_ONE_IMM_ONE_OFFSET,
+    82: InstructionTypes.ONE_REG_ONE_IMM_ONE_OFFSET,
+    83: InstructionTypes.ONE_REG_ONE_IMM_ONE_OFFSET,
+    84: InstructionTypes.ONE_REG_ONE_IMM_ONE_OFFSET,
+    85: InstructionTypes.ONE_REG_ONE_IMM_ONE_OFFSET,
+    86: InstructionTypes.ONE_REG_ONE_IMM_ONE_OFFSET,
+    87: InstructionTypes.ONE_REG_ONE_IMM_ONE_OFFSET,
+    88: InstructionTypes.ONE_REG_ONE_IMM_ONE_OFFSET,
+    89: InstructionTypes.ONE_REG_ONE_IMM_ONE_OFFSET,
+    90: InstructionTypes.ONE_REG_ONE_IMM_ONE_OFFSET,
+    # two registers: move_reg, sbrk, count/leading/trailing_zero_bits, sign/zero_extend,
+    # reverse_bytes (pvm.tex:418; 0.7.2 numbers reverse_bytes 111 and has sbrk at 101)
+    100: InstructionTypes.TWO_REGS,
+    101: InstructionTypes.TWO_REGS,
+    102: InstructionTypes.TWO_REGS,
+    103: InstructionTypes.TWO_REGS,
+    104: InstructionTypes.TWO_REGS,
+    105: InstructionTypes.TWO_REGS,
+    106: InstructionTypes.TWO_REGS,
+    107: InstructionTypes.TWO_REGS,
+    108: InstructionTypes.TWO_REGS,
+    109: InstructionTypes.TWO_REGS,
+    110: InstructionTypes.TWO_REGS,
+    111: InstructionTypes.TWO_REGS,
+    # two registers & one immediate: store_ind/load_ind, add/mul_imm_32..64, shifts, logic, cmov_iz/nz, rot_r_?_imm (pvm.tex:459)
+    120: InstructionTypes.TWO_REGS_ONE_IMM,
+    121: InstructionTypes.TWO_REGS_ONE_IMM,
+    122: InstructionTypes.TWO_REGS_ONE_IMM,
+    123: InstructionTypes.TWO_REGS_ONE_IMM,
+    124: InstructionTypes.TWO_REGS_ONE_IMM,
+    125: InstructionTypes.TWO_REGS_ONE_IMM,
+    126: InstructionTypes.TWO_REGS_ONE_IMM,
+    127: InstructionTypes.TWO_REGS_ONE_IMM,
+    128: InstructionTypes.TWO_REGS_ONE_IMM,
+    129: InstructionTypes.TWO_REGS_ONE_IMM,
+    130: InstructionTypes.TWO_REGS_ONE_IMM,
+    131: InstructionTypes.TWO_REGS_ONE_IMM,
+    132: InstructionTypes.TWO_REGS_ONE_IMM,
+    133: InstructionTypes.TWO_REGS_ONE_IMM,
+    134: InstructionTypes.TWO_REGS_ONE_IMM,
+    135: InstructionTypes.TWO_REGS_ONE_IMM,
+    136: InstructionTypes.TWO_REGS_ONE_IMM,
+    137: InstructionTypes.TWO_REGS_ONE_IMM,
+    138: InstructionTypes.TWO_REGS_ONE_IMM,
+    139: InstructionTypes.TWO_REGS_ONE_IMM,
+    140: InstructionTypes.TWO_REGS_ONE_IMM,
+    141: InstructionTypes.TWO_REGS_ONE_IMM,
+    142: InstructionTypes.TWO_REGS_ONE_IMM,
+    143: InstructionTypes.TWO_REGS_ONE_IMM,
+    144: InstructionTypes.TWO_REGS_ONE_IMM,
+    145: InstructionTypes.TWO_REGS_ONE_IMM,
+    146: InstructionTypes.TWO_REGS_ONE_IMM,
+    147: InstructionTypes.TWO_REGS_ONE_IMM,
+    148: InstructionTypes.TWO_REGS_ONE_IMM,
+    149: InstructionTypes.TWO_REGS_ONE_IMM,
+    150: InstructionTypes.TWO_REGS_ONE_IMM,
+    151: InstructionTypes.TWO_REGS_ONE_IMM,
+    152: InstructionTypes.TWO_REGS_ONE_IMM,
+    153: InstructionTypes.TWO_REGS_ONE_IMM,
+    154: InstructionTypes.TWO_REGS_ONE_IMM,
+    155: InstructionTypes.TWO_REGS_ONE_IMM,
+    156: InstructionTypes.TWO_REGS_ONE_IMM,
+    157: InstructionTypes.TWO_REGS_ONE_IMM,
+    158: InstructionTypes.TWO_REGS_ONE_IMM,
+    159: InstructionTypes.TWO_REGS_ONE_IMM,
+    160: InstructionTypes.TWO_REGS_ONE_IMM,
+    161: InstructionTypes.TWO_REGS_ONE_IMM,
+    # two registers & one offset: branch_eq/ne/lt_u/lt_s/ge_u/ge_s (pvm.tex:531)
+    170: InstructionTypes.TWO_REGS_ONE_OFFSET,
+    171: InstructionTypes.TWO_REGS_ONE_OFFSET,
+    172: InstructionTypes.TWO_REGS_ONE_OFFSET,
+    173: InstructionTypes.TWO_REGS_ONE_OFFSET,
+    174: InstructionTypes.TWO_REGS_ONE_OFFSET,
+    175: InstructionTypes.TWO_REGS_ONE_OFFSET,
+    # two registers & two immediates: load_imm_jump_ind (pvm.tex:560)
+    180: InstructionTypes.TWO_REGS_TWO_IMMS,
+    # three registers: add/sub/mul/div/rem_32/64, shifts, logic, mul_upper_*, set_lt_*, cmov_iz/nz, rot_?_32/64, min/max (pvm.tex:590)
+    190: InstructionTypes.THREE_REGS,
+    191: InstructionTypes.THREE_REGS,
+    192: InstructionTypes.THREE_REGS,
+    193: InstructionTypes.THREE_REGS,
+    194: InstructionTypes.THREE_REGS,
+    195: InstructionTypes.THREE_REGS,
+    196: InstructionTypes.THREE_REGS,
+    197: InstructionTypes.THREE_REGS,
+    198: InstructionTypes.THREE_REGS,
+    199: InstructionTypes.THREE_REGS,
+    200: InstructionTypes.THREE_REGS,
+    201: InstructionTypes.THREE_REGS,
+    202: InstructionTypes.THREE_REGS,
+    203: InstructionTypes.THREE_REGS,
+    204: InstructionTypes.THREE_REGS,
+    205: InstructionTypes.THREE_REGS,
+    206: InstructionTypes.THREE_REGS,
+    207: InstructionTypes.THREE_REGS,
+    208: InstructionTypes.THREE_REGS,
+    209: InstructionTypes.THREE_REGS,
+    210: InstructionTypes.THREE_REGS,
+    211: InstructionTypes.THREE_REGS,
+    212: InstructionTypes.THREE_REGS,
+    213: InstructionTypes.THREE_REGS,
+    214: InstructionTypes.THREE_REGS,
+    215: InstructionTypes.THREE_REGS,
+    216: InstructionTypes.THREE_REGS,
+    217: InstructionTypes.THREE_REGS,
+    218: InstructionTypes.THREE_REGS,
+    219: InstructionTypes.THREE_REGS,
+    220: InstructionTypes.THREE_REGS,
+    221: InstructionTypes.THREE_REGS,
+    222: InstructionTypes.THREE_REGS,
+    223: InstructionTypes.THREE_REGS,
+    224: InstructionTypes.THREE_REGS,
+    225: InstructionTypes.THREE_REGS,
+    226: InstructionTypes.THREE_REGS,
+    227: InstructionTypes.THREE_REGS,
+    228: InstructionTypes.THREE_REGS,
+    229: InstructionTypes.THREE_REGS,
+    230: InstructionTypes.THREE_REGS,
+}
