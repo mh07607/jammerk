@@ -1,5 +1,12 @@
 import jam_impl.util as util
-from jam_impl.pvm import Memory, PVMState, MEMORY_SIZE, signed_extension
+from jam_impl.pvm import (
+    Memory,
+    PVMState,
+    MEMORY_SIZE,
+    branch,
+    signed_extension,
+    to_signed,
+)
 
 
 def handle_instr_with_one_reg_and_one_imm(
@@ -42,6 +49,10 @@ def store_imm_u32(memory: Memory, imm1: int, imm2: int):
 def store_imm_u64(memory: Memory, imm1: int, imm2: int):
     # I wonder why we aren't applying modulus here
     memory.write(imm1, list(util.u64(imm2)))
+
+
+def jump(i: int, imm: int):
+    return branch(i, imm, True)
 
 
 # 50 - 62
@@ -126,3 +137,48 @@ def store_imm_ind_u64(
     registers: list, reg_addr: int, memory: Memory, imm1: int, imm2: int
 ):
     memory.write(reg_addr + imm1, list(util.u32(imm2 % 2**64)))
+
+
+def load_imm_jump(i: int, offset: int, registers: list, reg_addr: int, imm: int):
+    registers[reg_addr] = imm
+    return branch(i, offset, True)
+
+
+def branch_eq_imm(i: int, offset: int, registers: list, reg_addr: int, imm: int):
+    return branch(i, offset, registers[reg_addr] == imm)
+
+
+def branch_ne_imm(i: int, offset: int, registers: list, reg_addr: int, imm: int):
+    return branch(i, offset, registers[reg_addr] != imm)
+
+
+def branch_lt_u_imm(i: int, offset: int, registers: list, reg_addr: int, imm: int):
+    return branch(i, offset, registers[reg_addr] < imm)
+
+
+def branch_le_u_imm(i: int, offset: int, registers: list, reg_addr: int, imm: int):
+    return branch(i, offset, registers[reg_addr] <= imm)
+
+
+def branch_ge_u_imm(i: int, offset: int, registers: list, reg_addr: int, imm: int):
+    return branch(i, offset, registers[reg_addr] >= imm)
+
+
+def branch_gt_u_imm(i: int, offset: int, registers: list, reg_addr: int, imm: int):
+    return branch(i, offset, registers[reg_addr] > imm)
+
+
+def branch_lt_s_imm(i: int, offset: int, registers: list, reg_addr: int, imm: int):
+    return branch(i, offset, to_signed(registers[reg_addr], 8) < to_signed(imm, 8))
+
+
+def branch_le_s_imm(i: int, offset: int, registers: list, reg_addr: int, imm: int):
+    return branch(i, offset, to_signed(registers[reg_addr], 8) <= to_signed(imm, 8))
+
+
+def branch_ge_s_imm(i: int, offset: int, registers: list, reg_addr: int, imm: int):
+    return branch(i, offset, to_signed(registers[reg_addr], 8) >= to_signed(imm, 8))
+
+
+def branch_gt_s_imm(i: int, offset: int, registers: list, reg_addr: int, imm: int):
+    return branch(i, offset, to_signed(registers[reg_addr], 8) > to_signed(imm, 8))
