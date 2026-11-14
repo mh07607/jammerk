@@ -1,5 +1,6 @@
 from collections.abc import Callable
 from dataclasses import dataclass
+import math
 
 import jam_impl.util as util
 from jam_impl.pvm_instruction_mapping import (
@@ -11,6 +12,8 @@ MIN_ADDRESS = 2**16
 MAX_INSTRUCTION_LENGTH = 24
 TERMINATION_OPCODE_NUMBERS = [0, 1, 40, 50, 80, 180]
 MEMORY_SIZE = 2**32
+# TODO: write the real value here
+HEAP_FLOOR = 0
 
 
 @dataclass
@@ -108,11 +111,11 @@ def single_step_state_transition(
         pass
     elif instr_type == InstructionTypes.ONE_REG_ONE_EXT_IMM:
         r_A = min(12, program.instruction_data[i + 1] % 16)
-        value = util.decode_fixed(program.instruction_data[i + 2 : i + 8], 8)
+        value = util.decode_fixed(program.instruction_data[i + 2 : i + 2 + 8], 8)
         instr_method(registers, r_A, value)
     elif instr_type == InstructionTypes.TWO_IMMS:
         imm_len = min(4, program.instruction_data[i + 1] % 8)
-        imm2_len = max(4, skip_length - imm_len - 1)
+        imm2_len = min(4, max(0, skip_length - imm_len - 1))
         imm = signed_extension(
             util.decode_fixed(
                 program.instruction_data[i + 2 : i + 2 + imm_len], imm_len
@@ -144,12 +147,12 @@ def single_step_state_transition(
         imm_len = min(4, max(0, skip_length - 1))
         imm = signed_extension(
             util.decode_fixed(
-                program.instruction_data[i + 1 : i + 2 + imm_len], imm_len
+                program.instruction_data[i + 2 : i + 2 + imm_len], imm_len
             ),
             imm_len,
         )
         if instr_opcode == 50:
-            instr_method(registers[reg_addr], imm)
+            i = instr_method(registers[reg_addr], imm)
         elif instr_opcode == 51:
             instr_method(registers, reg_addr, imm)
         else:
@@ -184,13 +187,29 @@ def single_step_state_transition(
         offset_len = min(4, max(0, skip_length - imm_len - 1))
         offset = i + to_signed(
             util.decode_fixed(
-                program.instruction_data[i + 1 : i + 1 + offset_len], offset_len
+                program.instruction_data[
+                    i + 2 + imm_len : i + 2 + imm_len + offset_len
+                ],
+                offset_len,
             ),
             offset_len,
         )
         _, i = instr_method(i, offset, registers, reg_addr, imm)
     elif instr_type == InstructionTypes.TWO_REGS:
-        pass
+        dest_reg_addr = min(12, program.instruction_data[i + 1] % 16)
+        reg_addr = min(12, program.instruction_data[i + 1] // 16)
+        instr_method(registers, dest_reg_addr, reg_addr)
+    elif instr_type == InstructionTypes.TWO_REGS_ONE_IMM:
+        reg1_addr = min(12, program.instruction_data[i + 1] % 16)
+        reg2_addr = min(12, program.instruction_data[i + 1] // 16)
+        imm_len = min(4, max(0, skip_length - 1))
+        imm = signed_extension(
+            util.decode_fixed(
+                program.instruction_data[i + 2 : i + 2 + imm_len], imm_len
+            ),
+            imm_len,
+        )
+        instr_method(registers, reg1_addr, reg2_addr, memory, imm)
     else:
         pass
     i = i + 1 + skip_length
@@ -208,6 +227,19 @@ def to_signed(x: int, n: int):
 
 def to_unsigned(x: int, n: int):
     return (2 ** (8 * n) + x) % 2 ** (8 * n)
+
+
+def to_bits(x: int, n: int) -> list:
+    out_len = 8 * n
+    out = [None] * out_len
+    for i in range(out_len):
+        out[i] = (x // 2**i) % 2
+    return out
+
+
+# This is unused till now
+def to_bits_reversed(x: int, n: int) -> list:
+    return to_bits(x, n)[::-1]
 
 
 # A.16

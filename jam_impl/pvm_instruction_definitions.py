@@ -5,7 +5,10 @@ from jam_impl.pvm import (
     MEMORY_SIZE,
     branch,
     signed_extension,
+    to_bits,
+    to_bits_reversed,
     to_signed,
+    to_unsigned,
 )
 
 
@@ -182,3 +185,155 @@ def branch_ge_s_imm(i: int, offset: int, registers: list, reg_addr: int, imm: in
 
 def branch_gt_s_imm(i: int, offset: int, registers: list, reg_addr: int, imm: int):
     return branch(i, offset, to_signed(registers[reg_addr], 8) > to_signed(imm, 8))
+
+
+# 101 - 111
+def move_reg(registers: list, dest_reg_addr: int, reg_addr: int):
+    registers[dest_reg_addr] = reg_addr
+
+
+# TODO:
+def sbrk(registers: list, dest_reg_addr: int, reg_addr: int):
+    pass
+
+
+def cont_set_bits_64(registers: list, dest_reg_addr: int, reg_addr: int):
+    bits = to_bits(registers[reg_addr], 8)
+    registers[dest_reg_addr] = sum(bits)
+
+
+def cont_set_bits_32(registers: list, dest_reg_addr: int, reg_addr: int):
+    bits = to_bits(registers[reg_addr], 4)
+    registers[dest_reg_addr] = sum(bits)
+
+
+def leading_zero_bits_64(registers: list, dest_reg_addr: int, reg_addr: int):
+    registers[dest_reg_addr] = 64 - registers[reg_addr].bit_length()
+
+
+def leading_zero_bits_32(registers: list, dest_reg_addr: int, reg_addr: int):
+    registers[dest_reg_addr] = 32 - (registers[reg_addr] % 2**32).bit_length()
+
+
+def trailing_zero_bits_64(registers: list, dest_reg_addr: int, reg_addr: int):
+    x = registers[reg_addr]
+    registers[dest_reg_addr] = 64 if x == 0 else (x & -x).bit_length() - 1
+
+
+def trailing_zero_bits_32(registers: list, dest_reg_addr: int, reg_addr: int):
+    x = registers[reg_addr] % 2**32
+    registers[dest_reg_addr] = 32 if x == 0 else (x & -x).bit_length() - 1
+
+
+def sign_extend_8(registers: list, dest_reg_addr: int, reg_addr: int):
+    registers[dest_reg_addr] = to_unsigned(to_signed(registers[reg_addr] % 2**8, 1), 8)
+
+
+def sign_extend_16(registers: list, dest_reg_addr: int, reg_addr: int):
+    registers[dest_reg_addr] = to_unsigned(to_signed(registers[reg_addr] % 2**16, 2), 8)
+
+
+def zero_extend_16(registers: list, dest_reg_addr: int, reg_addr: int):
+    registers[dest_reg_addr] = registers[reg_addr] % 2**16
+
+
+def reverse_bytes(registers: list, dest_reg_addr: int, reg_addr: int):
+    registers[dest_reg_addr] = int.from_bytes(
+        registers[reg_addr].to_bytes(8, byteorder="big"), byteorder="little"
+    )
+
+
+# 120 - 161
+def store_ind_u8(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    memory.write(registers[reg2_addr] + imm, [registers[reg1_addr] % 2**8])
+
+
+def store_ind_u16(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    memory.write(
+        registers[reg2_addr] + imm, list(util.u16(registers[reg1_addr] % 2**16))
+    )
+
+
+def store_ind_u32(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    memory.write(
+        registers[reg2_addr] + imm, list(util.u32(registers[reg1_addr] % 2**32))
+    )
+
+
+def store_ind_u64(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    memory.write(
+        registers[reg2_addr] + imm, list(util.u64(registers[reg1_addr] % 2**64))
+    )
+
+
+def load_ind_u8(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    registers[reg1_addr] = util.decode_fixed(
+        bytes(memory.read(registers[reg2_addr] + imm, 1)), 1
+    )
+
+
+def load_ind_i8(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    registers[reg1_addr] = to_unsigned(
+        to_signed(
+            util.decode_fixed(bytes(memory.read(registers[reg2_addr] + imm, 1)), 1), 1
+        ),
+        8,
+    )
+
+
+def load_ind_u16(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    registers[reg1_addr] = util.decode_fixed(
+        bytes(memory.read(registers[reg2_addr] + imm, 2)), 2
+    )
+
+
+def load_ind_i16(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    registers[reg1_addr] = to_unsigned(
+        to_signed(
+            util.decode_fixed(bytes(memory.read(registers[reg2_addr] + imm, 2)), 2), 2
+        ),
+        8,
+    )
+
+
+def load_ind_u32(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    registers[reg1_addr] = util.decode_fixed(
+        bytes(memory.read(registers[reg2_addr] + imm, 4)), 4
+    )
+
+
+def load_ind_i32(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    registers[reg1_addr] = to_unsigned(
+        to_signed(
+            util.decode_fixed(bytes(memory.read(registers[reg2_addr] + imm, 4)), 4), 4
+        ),
+        8,
+    )
+
+
+def load_ind_u64(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    registers[reg1_addr] = util.decode_fixed(
+        bytes(memory.read(registers[reg2_addr] + imm, 8)), 8
+    )
