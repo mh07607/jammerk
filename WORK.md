@@ -19,6 +19,10 @@ The more milestones your team completes, the more competitive your submission wi
 4. Many of the inputs to STF components need to be readonly e.g. accumulation_queue and accumulation_history in reports_stf
 5. Make state and general merklization iterative to prevent future recursion depth problems?
 6. Separate error checking logic in the total STF so that errors are detected before state is mutated.
+7. Memory writing can be optimized by paging.
 
 # Queries
 1. Shouldn't the case of account service id not found be handled in stf/preimage vectors?
+
+# Knowledge bucket list
+1. What are the shlo and shar PVM commands?

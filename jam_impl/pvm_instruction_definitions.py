@@ -4,6 +4,7 @@ from jam_impl.pvm import (
     PVMState,
     MEMORY_SIZE,
     branch,
+    dynamic_jump,
     signed_extension,
     to_bits,
     to_bits_reversed,
@@ -197,13 +198,13 @@ def sbrk(registers: list, dest_reg_addr: int, reg_addr: int):
     pass
 
 
-def cont_set_bits_64(registers: list, dest_reg_addr: int, reg_addr: int):
+def count_set_bits_64(registers: list, dest_reg_addr: int, reg_addr: int):
     bits = to_bits(registers[reg_addr], 8)
     registers[dest_reg_addr] = sum(bits)
 
 
-def cont_set_bits_32(registers: list, dest_reg_addr: int, reg_addr: int):
-    bits = to_bits(registers[reg_addr], 4)
+def count_set_bits_32(registers: list, dest_reg_addr: int, reg_addr: int):
+    bits = to_bits(registers[reg_addr] % 2**32, 4)
     registers[dest_reg_addr] = sum(bits)
 
 
@@ -337,3 +338,262 @@ def load_ind_u64(
     registers[reg1_addr] = util.decode_fixed(
         bytes(memory.read(registers[reg2_addr] + imm, 8)), 8
     )
+
+
+def add_imm_32(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    registers[reg1_addr] = signed_extension((registers[reg2_addr] + imm) % 2**32, 4)
+
+
+def and_imm(registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int):
+    registers[reg1_addr] = registers[reg2_addr] & imm
+
+
+def xor_imm(registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int):
+    registers[reg1_addr] = registers[reg2_addr] ^ imm
+
+
+def or_imm(registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int):
+    registers[reg1_addr] = registers[reg2_addr] | imm
+
+
+def mul_imm_32(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    registers[reg1_addr] = signed_extension((registers[reg2_addr] * imm) % 2**32, 4)
+
+
+def set_lt_u_imm(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    registers[reg1_addr] = registers[reg2_addr] < imm
+
+
+def set_lt_s_imm(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    registers[reg1_addr] = to_signed(registers[reg2_addr], 8) < to_signed(imm, 8)
+
+
+def shlo_l_imm_32(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    registers[reg1_addr] = signed_extension(
+        (registers[reg2_addr] * 2 ** (imm % 32)) % 2**32, 4
+    )
+
+
+def shlo_r_imm_32(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    registers[reg1_addr] = signed_extension(
+        (registers[reg2_addr] % 2**32) // 2 ** (imm % 32), 4
+    )
+
+
+def shar_r_imm_32(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    registers[reg1_addr] = to_unsigned(
+        to_signed(registers[reg2_addr] % 2**32, 4) // 2 ** (imm % 32), 8
+    )
+
+
+def neg_add_imm_32(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    registers[reg1_addr] = signed_extension(
+        (imm + 2**32 - registers[reg2_addr]) % 2**32, 4
+    )
+
+
+def set_gt_u_imm(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    registers[reg1_addr] = registers[reg2_addr] > imm
+
+
+def set_gt_s_imm(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    registers[reg1_addr] = to_signed(registers[reg2_addr], 8) > to_signed(imm, 8)
+
+
+def shlo_l_imm_alt_32(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    registers[reg1_addr] = signed_extension(
+        (imm * 2 ** (registers[reg2_addr] % 32) % 2**32), 4
+    )
+
+
+def shlo_r_imm_alt_32(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    registers[reg1_addr] = signed_extension(
+        (imm % 2**32) // 2 ** (registers[reg2_addr] % 32), 4
+    )
+
+
+def shar_r_imm_alt_32(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    registers[reg1_addr] = to_unsigned(
+        to_signed(imm % 2**32, 4) // 2 ** (registers[reg2_addr] % 32), 8
+    )
+
+
+def cmov_iz_imm(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    registers[reg1_addr] = imm if registers[reg2_addr] == 0 else registers[reg1_addr]
+
+
+def cmov_nz_imm(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    registers[reg1_addr] = imm if registers[reg2_addr] != 0 else registers[reg1_addr]
+
+
+def add_imm_64(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    registers[reg1_addr] = (registers[reg2_addr] + imm) % 2**64
+
+
+def mul_imm_64(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    registers[reg1_addr] = (registers[reg2_addr] * imm) % 2**64
+
+
+def shlo_l_imm_64(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    registers[reg1_addr] = signed_extension(
+        (registers[reg2_addr] * 2 ** (imm % 64)) % 2**64, 8
+    )
+
+
+def shlo_r_imm_64(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    registers[reg1_addr] = signed_extension(registers[reg2_addr] // 2 ** (imm % 64), 8)
+
+
+def shar_r_imm_64(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    registers[reg1_addr] = to_unsigned(
+        to_signed(registers[reg2_addr], 8) // 2 ** (imm % 64), 8
+    )
+
+
+def neg_add_imm_64(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    registers[reg1_addr] = (imm + 2**64 - registers[reg2_addr]) % 2**64
+
+
+def shlo_l_imm_alt_64(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    registers[reg1_addr] = imm * 2 ** (registers[reg2_addr] % 64) % 2**64
+
+
+def shlo_r_imm_alt_64(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    registers[reg1_addr] = imm // 2 ** (registers[reg2_addr] % 64)
+
+
+def shar_r_imm_alt_64(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    registers[reg1_addr] = to_unsigned(
+        to_signed(imm, 8) // 2 ** (registers[reg2_addr] % 64), 8
+    )
+
+
+def rot_r_64_imm(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    reg2_octets = to_bits(registers[reg2_addr], 8)
+    out_octets = [0] * 64
+    for i in range(64):
+        out_octets[i] = reg2_octets[(i + imm) % 64]
+    registers[reg1_addr] = int.from_bytes(bytes(out_octets))
+
+
+def rot_r_64_imm_alt(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    imm_octets = to_bits(imm, 8)
+    out_octets = [0] * 64
+    reg2 = registers[reg2_addr]
+    for i in range(64):
+        out_octets[i] = imm_octets[(i + reg2) % 64]
+    registers[reg1_addr] = int.from_bytes(bytes(out_octets))
+
+
+def rot_r_32_imm(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    reg2_octets = to_bits(registers[reg2_addr], 4)
+    out_octets = [0] * 32
+    for i in range(32):
+        out_octets[i] = reg2_octets[(i + imm) % 32]
+    registers[reg1_addr] = signed_extension(int.from_bytes(bytes(out_octets)), 4)
+
+
+def rot_r_32_imm_alt(
+    registers: list, reg1_addr: int, reg2_addr: int, memory: Memory, imm: int
+):
+    imm_octets = to_bits(imm, 4)
+    out_octets = [0] * 32
+    reg2 = registers[reg2_addr]
+    for i in range(32):
+        out_octets[i] = imm_octets[(i + reg2) % 32]
+    registers[reg1_addr] = signed_extension(int.from_bytes(bytes(out_octets)), 4)
+
+
+# 170 - 175
+def branch_eq(i: int, registers: list, reg1_addr: int, reg2_addr: int, offset: int):
+    return branch(i, offset, registers[reg1_addr] == registers[reg2_addr])
+
+
+def branch_ne(i: int, registers: list, reg1_addr: int, reg2_addr: int, offset: int):
+    return branch(i, offset, registers[reg1_addr] != registers[reg2_addr])
+
+
+def branch_lt_u(i: int, registers: list, reg1_addr: int, reg2_addr: int, offset: int):
+    return branch(i, offset, registers[reg1_addr] < registers[reg2_addr])
+
+
+def branch_lt_s(i: int, registers: list, reg1_addr: int, reg2_addr: int, offset: int):
+    return branch(
+        i,
+        offset,
+        to_signed(registers[reg1_addr], 8) < to_signed(registers[reg2_addr], 8),
+    )
+
+
+def branch_ge_u(i: int, registers: list, reg1_addr: int, reg2_addr: int, offset: int):
+    return branch(i, offset, registers[reg1_addr] >= registers[reg2_addr])
+
+
+def branch_ge_s(i: int, registers: list, reg1_addr: int, reg2_addr: int, offset: int):
+    return branch(
+        i,
+        offset,
+        to_signed(registers[reg1_addr], 8) >= to_signed(registers[reg2_addr], 8),
+    )
+
+
+# 180
+def load_imm_jump_ind(
+    registers: list, reg1_addr: int, reg2_addr: int, imm1: int, imm2: int
+):
+    registers[reg1_addr] = imm1
+    dynamic_jump((registers[reg2_addr] + imm2) % 2**32)

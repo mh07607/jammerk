@@ -2,6 +2,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 import math
 
+from jam_impl.pvm_instruction_definitions import jump
 import jam_impl.util as util
 from jam_impl.pvm_instruction_mapping import (
     INSTRUCTION_TYPE_AND_METHOD,
@@ -210,6 +211,38 @@ def single_step_state_transition(
             imm_len,
         )
         instr_method(registers, reg1_addr, reg2_addr, memory, imm)
+    elif instr_type == InstructionTypes.TWO_REGS_ONE_OFFSET:
+        reg1_addr = min(12, program.instruction_data[i + 1] % 16)
+        reg2_addr = min(12, program.instruction_data[i + 1] // 16)
+        offset_len = min(4, max(0, skip_length - 1))
+        offset = i + to_signed(
+            util.decode_fixed(
+                program.instruction_data[i + 2 : i + 2 + offset_len], offset_len
+            ),
+            offset_len,
+        )
+        instr_method(registers, reg1_addr, reg2_addr, offset)
+    elif instr_type == InstructionTypes.TWO_REGS_TWO_IMMS:
+        reg1_addr = min(12, program.instruction_data[i + 1] % 16)
+        reg2_addr = min(12, program.instruction_data[i + 1] // 16)
+        imm1_len = min(4, program.instruction_data[i + 2] % 8)
+        imm1 = signed_extension(
+            util.decode_fixed(
+                program.instruction_data[i + 3 : i + 3 + imm1_len], imm1_len
+            ),
+            imm1_len,
+        )
+        imm2_len = min(4, max(0, skip_length - imm1_len - 2))
+        imm2 = signed_extension(
+            util.decode_fixed(
+                program.instruction_data[
+                    i + 3 + imm1_len : i + 3 + imm1_len + imm2_len
+                ],
+                imm2_len,
+            ),
+            imm2_len,
+        )
+        instr_method(registers, reg1_addr, reg2_addr, imm1, imm2)
     else:
         pass
     i = i + 1 + skip_length
@@ -243,7 +276,7 @@ def to_bits_reversed(x: int, n: int) -> list:
 
 
 # A.16
-def signed_extension(x: int, n: int):
+def signed_extension(x: int, n: int) -> int:
     return x + (x // 2 ** (8 * n - 1)) * (2**64 - 2 ** (8 * n))
 
 
@@ -258,8 +291,18 @@ def branch(i: int, branch_i: int, condition: bool):
 
 
 # A.18
-def dynamic_jump():
-    pass
+def dynamic_jump(i: int, jump_table: list[int], a: int):
+    if a == 2**32 - 2**16:
+        return ("halt", i)
+    elif (
+        a == 0
+        or a > len(jump_table)
+        or a % 69 != 0
+        or jump_table[int(a / 69 - 1)] not in TERMINATION_OPCODE_NUMBERS
+    ):
+        return "panic", i
+    else:
+        return "resume", jump_table[int(a / 69 - 1)]
 
 
 # GP A.2
