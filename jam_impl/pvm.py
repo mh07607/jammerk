@@ -13,6 +13,7 @@ MIN_ADDRESS = 2**16
 MAX_INSTRUCTION_LENGTH = 24
 TERMINATION_OPCODE_NUMBERS = [0, 1, 40, 50, 80, 180]
 MEMORY_SIZE = 2**32
+ADDRESS_ALIGNMENT_FACTOR = 2
 # TODO: write the real value here
 HEAP_FLOOR = 0
 
@@ -242,7 +243,21 @@ def single_step_state_transition(
             ),
             imm2_len,
         )
-        instr_method(registers, reg1_addr, reg2_addr, imm1, imm2)
+        instr_method(
+            i,
+            program.jump_table,
+            program.basic_block_and_termination_indices(),
+            registers,
+            reg1_addr,
+            reg2_addr,
+            imm1,
+            imm2,
+        )
+    elif instr_type == InstructionTypes.THREE_REGS:
+        reg1_addr = min(12, program.instruction_data[i + 1] % 16)
+        reg2_addr = min(12, program.instruction_data[i + 1] // 16)
+        reg3_addr = min(12, program.instruction_data[i + 2])
+        instr_method(registers, reg1_addr, reg2_addr, reg3_addr)
     else:
         pass
     i = i + 1 + skip_length
@@ -280,6 +295,19 @@ def signed_extension(x: int, n: int) -> int:
     return x + (x // 2 ** (8 * n - 1)) * (2**64 - 2 ** (8 * n))
 
 
+def smod(a, b):
+    if b == 0:
+        return a
+    else:
+        numerator_sign = 1 if a > -0 else -1
+        return numerator_sign * (abs(a) % abs(b))
+
+
+# A.34
+def round_toward_zero(x: float) -> int:
+    return math.ceil(x) if x < 0 else math.floor(x)
+
+
 # A.17
 def branch(i: int, branch_i: int, condition: bool):
     if not condition:
@@ -291,18 +319,18 @@ def branch(i: int, branch_i: int, condition: bool):
 
 
 # A.18
-def dynamic_jump(i: int, jump_table: list[int], a: int):
+def dynamic_jump(i: int, jump_table: list[int], basic_block_indices: list[int], a: int):
     if a == 2**32 - 2**16:
         return ("halt", i)
     elif (
         a == 0
-        or a > len(jump_table)
-        or a % 69 != 0
-        or jump_table[int(a / 69 - 1)] not in TERMINATION_OPCODE_NUMBERS
+        or a > len(jump_table) * ADDRESS_ALIGNMENT_FACTOR
+        or a % ADDRESS_ALIGNMENT_FACTOR != 0
+        or jump_table[int(a / ADDRESS_ALIGNMENT_FACTOR - 1)] not in basic_block_indices
     ):
         return "panic", i
     else:
-        return "resume", jump_table[int(a / 69 - 1)]
+        return "resume", jump_table[int(a / ADDRESS_ALIGNMENT_FACTOR - 1)]
 
 
 # GP A.2

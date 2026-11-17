@@ -5,7 +5,9 @@ from jam_impl.pvm import (
     MEMORY_SIZE,
     branch,
     dynamic_jump,
+    round_toward_zero,
     signed_extension,
+    smod,
     to_bits,
     to_bits_reversed,
     to_signed,
@@ -60,6 +62,7 @@ def jump(i: int, imm: int):
 
 
 # 50 - 62
+# TODO:
 def jump_ind(reg_addr: int, imm: int):
     pass
 
@@ -593,7 +596,143 @@ def branch_ge_s(i: int, registers: list, reg1_addr: int, reg2_addr: int, offset:
 
 # 180
 def load_imm_jump_ind(
-    registers: list, reg1_addr: int, reg2_addr: int, imm1: int, imm2: int
+    i: int,
+    jump_table: list[int],
+    basic_block_indices: list[int],
+    registers: list,
+    reg1_addr: int,
+    reg2_addr: int,
+    imm1: int,
+    imm2: int,
 ):
     registers[reg1_addr] = imm1
-    dynamic_jump((registers[reg2_addr] + imm2) % 2**32)
+    return dynamic_jump(
+        i, jump_table, basic_block_indices, (registers[reg2_addr] + imm2) % 2**32
+    )
+
+
+# 190 - 230
+def add_32(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    registers[regD_addr] = signed_extension(
+        (registers[regA_addr] + registers[regB_addr]) % 2**32, 4
+    )
+
+
+def sub_32(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    # this trick might be redundant in python, just do the same
+    # as add_32
+    # registers[regD_addr] = signed_extension(
+    #     (registers[regA_addr] + 2**32 - (registers[regB_addr] % 2**32)) % 2**32, 4
+    # )
+    registers[regD_addr] = signed_extension(
+        (registers[regA_addr] - registers[regB_addr]) % 2**32, 4
+    )
+
+
+def mul_32(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    registers[regD_addr] = signed_extension(
+        (registers[regA_addr] * registers[regB_addr]) % 2**32, 4
+    )
+
+
+def div_u_32(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    if registers[regB_addr] % 2**32 == 0:
+        registers[regD_addr] = 2**64 - 1
+    else:
+        registers[regD_addr] = signed_extension(
+            (registers[regA_addr] % 2**32) // (registers[regB_addr] % 2**32), 4
+        )
+
+
+def div_s_32(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    a = to_signed(registers[regA_addr] % 2**32, 4)
+    b = to_signed(registers[regA_addr] % 2**32, 4)
+    if b == 0:
+        registers[regD_addr] = 2**64 - 1
+    elif a == -(2**31) and b == -1:
+        registers[regD_addr] = to_unsigned(a, 8)
+    else:
+        registers[regD_addr] = to_unsigned(round_toward_zero(a / b), 8)
+
+
+def rem_u_32(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    if registers[regB_addr] % 2**32 == 0:
+        registers[regD_addr] = signed_extension(registers[regA_addr] % 2**32, 4)
+    else:
+        registers[regD_addr] = signed_extension(
+            (registers[regA_addr] % 2**32) % (registers[regB_addr] % 2**32), 4
+        )
+
+
+def rem_s_32(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    a = to_signed(registers[regA_addr] % 2**32, 4)
+    b = to_signed(registers[regA_addr] % 2**32, 4)
+    if a == -(2**31) and b == -1:
+        registers[regD_addr] = 0
+    else:
+        registers[regD_addr] = to_unsigned(smod(a, b), 4)
+
+
+def shlo_l_32(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    registers[regD_addr] = signed_extension(
+        (registers[regA_addr] * 2 ** (registers[regB_addr] % 32)) * 2**32, 4
+    )
+
+
+def shlo_r_32(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    registers[regD_addr] = signed_extension(
+        (registers[regA_addr] % 2**32) // 2 ** (registers[regB_addr] % 32), 4
+    )
+
+
+def shar_r_32(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    registers[regD_addr] = to_unsigned(
+        to_signed(registers[regA_addr] % 2**32, 4) // 2 ** (registers[regB_addr] % 32),
+        8,
+    )
+
+
+def add_64(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    registers[regD_addr] = (registers[regA_addr] + registers[regB_addr]) % 2**64
+
+
+def sub_64(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    registers[regD_addr] = (registers[regA_addr] + 2**64 - registers[regB_addr]) % 2**64
+
+
+def mul_64(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    registers[regD_addr] = (registers[regA_addr] * registers[regB_addr]) % 2**64
+
+
+def div_u_64(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    if registers[regB_addr] == 0:
+        registers[regD_addr] = 2**64 - 1
+    else:
+        registers[regD_addr] = registers[regA_addr] // registers[regB_addr]
+
+
+def div_s_64(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    a = to_signed(registers[regA_addr], 8)
+    b = to_signed(registers[regB_addr], 8)
+    if registers[regB_addr] == 0:
+        registers[regD_addr] = 2**64 - 1
+    elif a == -(2**63) and b == -1:
+        registers[regD_addr] = registers[regA_addr]
+    else:
+        registers[regD_addr] = to_unsigned(round_toward_zero(a / b), 8)
+
+
+def rem_u_64(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    if registers[regB_addr] == 0:
+        registers[regD_addr] = registers[regA_addr]
+    else:
+        registers[regD_addr] = registers[regA_addr] % registers[regB_addr]
+
+
+def rem_s_64(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    a = to_signed(registers[regA_addr], 8)
+    b = to_signed(registers[regB_addr], 8)
+    if a == -(2**63) and b == -1:
+        registers[regD_addr] = 0
+    else:
+        registers[regD_addr] = to_unsigned(smod(a, b), 8)
