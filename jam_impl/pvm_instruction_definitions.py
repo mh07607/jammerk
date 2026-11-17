@@ -736,3 +736,139 @@ def rem_s_64(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: in
         registers[regD_addr] = 0
     else:
         registers[regD_addr] = to_unsigned(smod(a, b), 8)
+
+
+def shlo_l_64(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    registers[regD_addr] = (
+        registers[regA_addr] * 2 ** (registers[regB_addr] % 64)
+    ) % 2**64
+
+
+def shlo_r_64(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    registers[regD_addr] = registers[regA_addr] // 2 ** (registers[regB_addr] % 64)
+
+
+def shar_r_64(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    registers[regD_addr] = to_unsigned(
+        to_signed(registers[regA_addr], 8) // 2 ** (registers[regB_addr] % 64), 8
+    )
+
+
+def and_64(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    registers[regD_addr] = registers[regA_addr] & registers[regB_addr]
+
+
+def xor_64(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    registers[regD_addr] = registers[regA_addr] ^ registers[regB_addr]
+
+
+def or_64(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    registers[regD_addr] = registers[regA_addr] | registers[regB_addr]
+
+
+def mul_upper_s_s(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    registers[regD_addr] = to_unsigned(
+        (to_signed(registers[regA_addr], 8) * to_signed(registers[regB_addr], 8))
+        // 2**64,
+        8,
+    )
+
+
+def mul_upper_u_u(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    registers[regD_addr] = (registers[regA_addr] * registers[regB_addr]) // 2**64
+
+
+def mul_upper_s_u(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    registers[regD_addr] = to_unsigned(
+        (to_signed(registers[regA_addr], 8) * registers[regB_addr]) // 2**64, 8
+    )
+
+
+def set_lt_u(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    registers[regD_addr] = registers[regA_addr] < registers[regB_addr]
+
+
+def set_lt_s(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    registers[regD_addr] = to_signed(registers[regA_addr], 8) < to_signed(
+        registers[regB_addr], 8
+    )
+
+
+def cmov_iz(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    registers[regD_addr] = (
+        registers[regA_addr] if registers[regB_addr] == 0 else registers[regD_addr]
+    )
+
+
+def cmov_nz(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    registers[regD_addr] = (
+        registers[regA_addr] if registers[regB_addr] != 0 else registers[regD_addr]
+    )
+
+
+def rot_l_64(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    regA_octets = to_bits(registers[regA_addr], 8)
+    regB = registers[regB_addr]
+    out_octets = [0] * 64
+    for i in range(64):
+        out_octets[(i + regB) % 64] = regA_octets[i]
+    registers[regD_addr] = int.from_bytes(bytes(out_octets))
+
+
+def rot_l_32(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    regA_octets = to_bits(registers[regA_addr], 8)
+    regB = registers[regB_addr]
+    out_octets = [0] * 32
+    for i in range(32):
+        out_octets[(i + regB) % 32] = regA_octets[i]
+    registers[regD_addr] = signed_extension(int.from_bytes(bytes(out_octets)), 4)
+
+
+def rot_r_64(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    regA_octets = to_bits(registers[regA_addr], 8)
+    regB = registers[regB_addr]
+    out_octets = [0] * 64
+    for i in range(64):
+        out_octets[i] = regA_octets[(i + regB) % 64]
+    registers[regD_addr] = int.from_bytes(bytes(out_octets))
+
+
+def rot_r_32(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    regA_octets = to_bits(registers[regA_addr], 8)
+    regB = registers[regB_addr]
+    out_octets = [0] * 32
+    for i in range(32):
+        out_octets[i] = regA_octets[(i + regB) % 32]
+    registers[regD_addr] = signed_extension(int.from_bytes(bytes(out_octets)), 4)
+
+
+def and_inv(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    registers[regD_addr] = registers[regA_addr] & ~registers[regB_addr]
+
+
+def or_inv(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    registers[regD_addr] = registers[regA_addr] | ~registers[regB_addr]
+
+
+def xnor(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    registers[regD_addr] = ~(registers[regA_addr] ^ registers[regB_addr])
+
+
+def max_s(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    registers[regD_addr] = to_unsigned(
+        max(to_signed(registers[regA_addr], 8), to_signed(registers[regB_addr], 8)), 8
+    )
+
+
+def max_u(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    registers[regD_addr] = max(registers[regA_addr], registers[regB_addr])
+
+
+def min_s(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    registers[regD_addr] = to_unsigned(
+        min(to_signed(registers[regA_addr], 8), to_signed(registers[regB_addr], 8)), 8
+    )
+
+
+def min_u(registers: list[int], regA_addr: int, regB_addr: int, regD_addr: int):
+    registers[regD_addr] = min(registers[regA_addr], registers[regB_addr])
