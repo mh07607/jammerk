@@ -1,6 +1,8 @@
 from collections.abc import Callable
 from dataclasses import dataclass
+import math
 
+from jam_impl.pvm_instruction_definitions import jump
 import jam_impl.util as util
 from jam_impl.pvm_instruction_mapping import (
     INSTRUCTION_TYPE_AND_METHOD,
@@ -11,6 +13,9 @@ MIN_ADDRESS = 2**16
 MAX_INSTRUCTION_LENGTH = 24
 TERMINATION_OPCODE_NUMBERS = [0, 1, 40, 50, 80, 180]
 MEMORY_SIZE = 2**32
+ADDRESS_ALIGNMENT_FACTOR = 2
+# TODO: write the real value here
+HEAP_FLOOR = 0
 
 
 @dataclass
@@ -97,84 +102,164 @@ def single_step_state_transition(
         not program.opcode_bitmask[i]
         or instr_opcode not in INSTRUCTION_TYPE_AND_METHOD.keys()
     ):
-        return "err"  # TODO: handle error
+        return "err"  # TODO: handle error(s)
     instr_type, instr_method = INSTRUCTION_TYPE_AND_METHOD[instr_opcode]
     skip_length = skip_to_next_instruction(i, program.opcode_bitmask)
     if instr_type == InstructionTypes.NO_ARGS:
         # TODO: handle the return
         instr_method()
     elif instr_type == InstructionTypes.ONE_IMM:
-        # TODO: handle this when understanding how host functions work
+        # TODO: This isn't implemented yet, looks like a host function
         pass
     elif instr_type == InstructionTypes.ONE_REG_ONE_EXT_IMM:
         r_A = min(12, program.instruction_data[i + 1] % 16)
-        value = util.decode_fixed(program.instruction_data[i + 2 : i + 8], 8)
+        value = util.decode_fixed(program.instruction_data[i + 2 : i + 2 + 8], 8)
         instr_method(registers, r_A, value)
     elif instr_type == InstructionTypes.TWO_IMMS:
-        imm1_len = min(4, program.instruction_data[i + 1] % 8)
-        imm2_len = max(4, skip_length - imm1_len - 1)
-        imm1 = signed_extension(
+        imm_len = min(4, program.instruction_data[i + 1] % 8)
+        imm2_len = min(4, max(0, skip_length - imm_len - 1))
+        imm = signed_extension(
             util.decode_fixed(
-                program.instruction_data[i + 2 : i + 2 + imm1_len], imm1_len
+                program.instruction_data[i + 2 : i + 2 + imm_len], imm_len
             ),
-            imm1_len,
+            imm_len,
         )
         imm2 = signed_extension(
             util.decode_fixed(
-                program.instruction_data[
-                    i + 2 + imm1_len : i + 2 + imm1_len + imm2_len
-                ],
+                program.instruction_data[i + 2 + imm_len : i + 2 + imm_len + imm2_len],
                 imm2_len,
             ),
             imm2_len,
         )
-        instr_method(memory, imm1, imm2)
+        instr_method(memory, imm, imm2)
     elif instr_type == InstructionTypes.ONE_OFFSET:
-        offset_len = min(4, skip_length)
-        offset = i + to_signed(
+        # TODO: handle this when understanding how host functions work
+        # we might have to encapsulate the PVM state so that the instr_reg
+        # can be handled easily
+        imm_len = min(4, skip_length)
+        imm = i + to_signed(
             util.decode_fixed(
-                program.instruction_data[i + 1 : i + 1 + offset_len], offset_len
+                program.instruction_data[i + 1 : i + 1 + imm_len], imm_len
             ),
-            offset_len,
+            imm_len,
         )
-        # TODO: This isn't implemented yet, looks like a host function
-        instr_method(offset, True)
+        _, i = instr_method(i, imm)
     elif instr_type == InstructionTypes.ONE_REG_ONE_IMM:
         reg_addr = min(12, program.instruction_data[i + 1] % 16)
         imm_len = min(4, max(0, skip_length - 1))
         imm = signed_extension(
             util.decode_fixed(
-                program.instruction_data[i + 1 : i + 2 + imm_len], imm_len
+                program.instruction_data[i + 2 : i + 2 + imm_len], imm_len
             ),
             imm_len,
         )
         if instr_opcode == 50:
-            instr_method(registers[reg_addr], imm)
+            i = instr_method(registers[reg_addr], imm)
         elif instr_opcode == 51:
             instr_method(registers, reg_addr, imm)
         else:
             instr_method(registers, reg_addr, memory, imm)
     elif instr_type == InstructionTypes.ONE_REG_TWO_IMM:
         reg_addr = min(12, program.instruction_data[i + 1] % 16)
-        imm1_len = min(4, program.instruction_data[i + 1] // 16 % 8)
+        imm_len = min(4, program.instruction_data[i + 1] // 16 % 8)
+        imm = signed_extension(
+            util.decode_fixed(
+                program.instruction_data[i + 2 : i + 2 + imm_len], imm_len
+            ),
+            imm_len,
+        )
+        imm2_len = min(4, max(0, skip_length - imm_len - 1))
+        imm2 = signed_extension(
+            util.decode_fixed(
+                program.instruction_data[i + 2 + imm_len : i + 2 + imm_len + imm2_len],
+                imm2_len,
+            ),
+            imm2_len,
+        )
+        instr_method(registers, reg_addr, memory, imm, imm2)
+    elif instr_type == InstructionTypes.ONE_REG_ONE_IMM_ONE_OFFSET:
+        reg_addr = min(12, program.instruction_data[i + 1] % 16)
+        imm_len = min(4, program.instruction_data[i + 1] // 16 % 8)
+        imm = signed_extension(
+            util.decode_fixed(
+                program.instruction_data[i + 2 : i + 2 + imm_len], imm_len
+            ),
+            imm_len,
+        )
+        offset_len = min(4, max(0, skip_length - imm_len - 1))
+        offset = i + to_signed(
+            util.decode_fixed(
+                program.instruction_data[
+                    i + 2 + imm_len : i + 2 + imm_len + offset_len
+                ],
+                offset_len,
+            ),
+            offset_len,
+        )
+        _, i = instr_method(i, offset, registers, reg_addr, imm)
+    elif instr_type == InstructionTypes.TWO_REGS:
+        dest_reg_addr = min(12, program.instruction_data[i + 1] % 16)
+        reg_addr = min(12, program.instruction_data[i + 1] // 16)
+        instr_method(registers, dest_reg_addr, reg_addr)
+    elif instr_type == InstructionTypes.TWO_REGS_ONE_IMM:
+        reg1_addr = min(12, program.instruction_data[i + 1] % 16)
+        reg2_addr = min(12, program.instruction_data[i + 1] // 16)
+        imm_len = min(4, max(0, skip_length - 1))
+        imm = signed_extension(
+            util.decode_fixed(
+                program.instruction_data[i + 2 : i + 2 + imm_len], imm_len
+            ),
+            imm_len,
+        )
+        instr_method(registers, reg1_addr, reg2_addr, memory, imm)
+    elif instr_type == InstructionTypes.TWO_REGS_ONE_OFFSET:
+        reg1_addr = min(12, program.instruction_data[i + 1] % 16)
+        reg2_addr = min(12, program.instruction_data[i + 1] // 16)
+        offset_len = min(4, max(0, skip_length - 1))
+        offset = i + to_signed(
+            util.decode_fixed(
+                program.instruction_data[i + 2 : i + 2 + offset_len], offset_len
+            ),
+            offset_len,
+        )
+        instr_method(registers, reg1_addr, reg2_addr, offset)
+    elif instr_type == InstructionTypes.TWO_REGS_TWO_IMMS:
+        reg1_addr = min(12, program.instruction_data[i + 1] % 16)
+        reg2_addr = min(12, program.instruction_data[i + 1] // 16)
+        imm1_len = min(4, program.instruction_data[i + 2] % 8)
         imm1 = signed_extension(
             util.decode_fixed(
-                program.instruction_data[i + 2 : i + 2 + imm1_len], imm1_len
+                program.instruction_data[i + 3 : i + 3 + imm1_len], imm1_len
             ),
             imm1_len,
         )
-        imm2_len = min(4, max(0, skip_length - imm1_len - 1))
+        imm2_len = min(4, max(0, skip_length - imm1_len - 2))
         imm2 = signed_extension(
             util.decode_fixed(
                 program.instruction_data[
-                    i + 2 + imm1_len : i + 2 + imm1_len + imm2_len
+                    i + 3 + imm1_len : i + 3 + imm1_len + imm2_len
                 ],
                 imm2_len,
             ),
             imm2_len,
         )
-        instr_method(registers, reg_addr, memory, imm1, imm2)
-        registers[reg_addr]
+        instr_method(
+            i,
+            program.jump_table,
+            program.basic_block_and_termination_indices(),
+            registers,
+            reg1_addr,
+            reg2_addr,
+            imm1,
+            imm2,
+        )
+    elif instr_type == InstructionTypes.THREE_REGS:
+        reg1_addr = min(12, program.instruction_data[i + 1] % 16)
+        reg2_addr = min(12, program.instruction_data[i + 1] // 16)
+        reg3_addr = min(12, program.instruction_data[i + 2])
+        instr_method(registers, reg1_addr, reg2_addr, reg3_addr)
+    else:
+        pass
     i = i + 1 + skip_length
     gas = gas - 1  # gas cost per single step
     # output = continue
@@ -192,9 +277,35 @@ def to_unsigned(x: int, n: int):
     return (2 ** (8 * n) + x) % 2 ** (8 * n)
 
 
+def to_bits(x: int, n: int) -> list:
+    out_len = 8 * n
+    out = [None] * out_len
+    for i in range(out_len):
+        out[i] = (x // 2**i) % 2
+    return out
+
+
+# This is unused till now
+def to_bits_reversed(x: int, n: int) -> list:
+    return to_bits(x, n)[::-1]
+
+
 # A.16
-def signed_extension(x: int, n: int):
+def signed_extension(x: int, n: int) -> int:
     return x + (x // 2 ** (8 * n - 1)) * (2**64 - 2 ** (8 * n))
+
+
+def smod(a, b):
+    if b == 0:
+        return a
+    else:
+        numerator_sign = 1 if a > -0 else -1
+        return numerator_sign * (abs(a) % abs(b))
+
+
+# A.34
+def round_toward_zero(x: float) -> int:
+    return math.ceil(x) if x < 0 else math.floor(x)
 
 
 # A.17
@@ -208,8 +319,18 @@ def branch(i: int, branch_i: int, condition: bool):
 
 
 # A.18
-def dynamic_jump():
-    pass
+def dynamic_jump(i: int, jump_table: list[int], basic_block_indices: list[int], a: int):
+    if a == 2**32 - 2**16:
+        return ("halt", i)
+    elif (
+        a == 0
+        or a > len(jump_table) * ADDRESS_ALIGNMENT_FACTOR
+        or a % ADDRESS_ALIGNMENT_FACTOR != 0
+        or jump_table[int(a / ADDRESS_ALIGNMENT_FACTOR - 1)] not in basic_block_indices
+    ):
+        return "panic", i
+    else:
+        return "resume", jump_table[int(a / ADDRESS_ALIGNMENT_FACTOR - 1)]
 
 
 # GP A.2
